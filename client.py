@@ -4,27 +4,43 @@ import tcp_by_size
 from socket import socket, AF_INET, SOCK_STREAM
 from tcp_by_size import send_with_size, recv_by_size
 from sys import argv
+from functools import partial
 
 
 IP = "127.0.0.1"
 PORT = 1234
 
-class Client(tk.Tk):
+def close_window(func):
+    def wrapper(self, *args, **kwargs):
+        if self.running_window:
+            self.running_window.destroy()
+        result = func(self, *args, **kwargs)
+        return result
+    return wrapper
+
+class Client:
     def __init__(self, ip, port, width=350, height=250):
-        super().__init__()
         self.width = width
         self.height = height
         self.ip = ip
         self.port = port
         self.cli_sock = socket(AF_INET, SOCK_STREAM)
+        self.running_window = None
 
+    @close_window
     def init_home(self):
-        self.title("User Login")
-        self.geometry(f"{self.width}x{self.height}")
-        self.configure(bg="#1E2533")
+        self.home_window = tk.Tk()
+        self.running_window = self.home_window
+        self.home_window.title("Home")
+        self.home_window.geometry(f"{self.width}x{self.height}")
+        self.home_window.configure(bg="#1E2533")
         header_font = font.Font(family="Helvetica", size=16, weight="bold")
         header_label = tk.Label(
-            self, text="User Login", font=header_font, bg="#1E2533", fg="#E0E6F0"
+            self.home_window,
+            text="User Login - Itamar Dalal",
+            font=header_font,
+            bg="#1E2533",
+            fg="#E0E6F0",
         )
         header_label.pack(pady=20, padx=10, ipadx=10, ipady=5)
         self.button_style = {
@@ -35,22 +51,27 @@ class Client(tk.Tk):
             "activeforeground": "white",
         }
         register_button = tk.Button(
-            self,
+            self.home_window,
             text="Open Register Window",
             command=self.init_register,
             **self.button_style,
         )
         register_button.pack(pady=20, padx=10, ipadx=10, ipady=5)
         login_button = tk.Button(
-            self, text="Open Login Window", command=self.init_login, **self.button_style
+            self.home_window,
+            text="Open Login Window",
+            command=self.init_login,
+            **self.button_style,
         )
         login_button.pack(pady=20, padx=10, ipadx=10, ipady=5)
-        self.mainloop()
+        self.home_window.mainloop()
 
+    @close_window
     def init_register(self):
-        self.register_window = tk.Toplevel(self)
+        self.register_window = tk.Tk()
+        self.running_window = self.register_window
         self.register_window.title("Register")
-        self.register_window.geometry(f"300x440")
+        self.register_window.geometry(f"300x480")
         self.register_window.configure(bg="#1E2533")
         header_font = font.Font(family="Helvetica", size=14, weight="bold")
         tk.Label(
@@ -81,16 +102,29 @@ class Client(tk.Tk):
             command=self.register_user,
             **self.button_style,
         )
-        register_button.pack(pady=20, padx=10, ipadx=10, ipady=5)
+        register_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
+        home_button = tk.Button(
+            self.register_window,
+            text="Return Home",
+            command=lambda: self.init_home(),
+            **self.button_style,
+        )
+        home_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
 
+    @close_window
     def init_login(self):
-        self.login_window = tk.Toplevel(self)
+        self.login_window = tk.Tk()
+        self.running_window = self.login_window
         self.login_window.title("Login")
         self.login_window.geometry(f"300x380")
         self.login_window.configure(bg="#1E2533")
         header_font = font.Font(family="Helvetica", size=14, weight="bold")
         tk.Label(
-            self.login_window, text="Login", font=header_font, bg="#1E2533", fg="#E0E6F0"
+            self.login_window,
+            text="Login",
+            font=header_font,
+            bg="#1E2533",
+            fg="#E0E6F0",
         ).pack(pady=20, padx=10, ipadx=10, ipady=5)
         labels = ["Username:", "Password:"]
         self.login_entries = [
@@ -103,24 +137,38 @@ class Client(tk.Tk):
             for label in labels
         ]
         for label, entry in zip(labels, self.login_entries):
-            tk.Label(self.login_window, text=label, bg="#1E2533", fg="#E0E6F0").pack(pady=5)
+            tk.Label(self.login_window, text=label, bg="#1E2533", fg="#E0E6F0").pack(
+                pady=5
+            )
             entry.pack(pady=5, padx=10, ipadx=10, ipady=5)
         login_button = tk.Button(
-            self.login_window, text="Login", command=self.login_user, **self.button_style
+            self.login_window,
+            text="Login",
+            command=self.login_user,
+            **self.button_style,
         )
-        login_button.pack(pady=20, padx=10, ipadx=10, ipady=5)
+        login_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
         forgot_password_button = tk.Button(
             self.login_window,
             text="Forgot Password",
             command=self.init_forgot_password,
             **self.button_style,
         )
-        forgot_password_button.pack(pady=20, padx=10, ipadx=10, ipady=5)
+        forgot_password_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
+        home_button = tk.Button(
+            self.login_window,
+            text="Return Home",
+            command=lambda: self.init_home(),
+            **self.button_style,
+        )
+        home_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
 
+    @close_window
     def init_forgot_password(self):
-        self.forgot_password_window = tk.Toplevel(self)
+        self.forgot_password_window = tk.Tk()
+        self.running_window = self.forgot_password_window
         self.forgot_password_window.title("Forgot Password")
-        self.forgot_password_window.geometry(f"300x250")
+        self.forgot_password_window.geometry(f"300x280")
         self.forgot_password_window.configure(bg="#1E2533")
         header_font = font.Font(family="Helvetica", size=14, weight="bold")
         tk.Label(
@@ -131,9 +179,14 @@ class Client(tk.Tk):
             fg="#E0E6F0",
         ).pack(pady=20, padx=10, ipadx=10, ipady=5)
         tk.Label(
-            self.forgot_password_window, text="Email Address:", bg="#1E2533", fg="#E0E6F0"
+            self.forgot_password_window,
+            text="Email Address:",
+            bg="#1E2533",
+            fg="#E0E6F0",
         ).pack(pady=5)
-        self.email_entry = tk.Entry(self.forgot_password_window, bg="#46516e", fg="#E0E6F0")
+        self.email_entry = tk.Entry(
+            self.forgot_password_window, bg="#46516e", fg="#E0E6F0"
+        )
         self.email_entry.pack(pady=5, padx=10, ipadx=10, ipady=5)
         send_email_button = tk.Button(
             self.forgot_password_window,
@@ -141,7 +194,14 @@ class Client(tk.Tk):
             command=self.forgot_password,
             **self.button_style,
         )
-        send_email_button.pack(pady=20, padx=10, ipadx=10, ipady=5)
+        send_email_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
+        home_button = tk.Button(
+            self.forgot_password_window,
+            text="Return To Login",
+            command=lambda: self.init_login(),
+            **self.button_style,
+        )
+        home_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
 
     def register_user(self):
         username = self.register_entries[0].get()
@@ -152,7 +212,9 @@ class Client(tk.Tk):
             "" in (username, email, password, verify_password)
             or password != verify_password
         ):
-            print("Error: Not all fields have been filled, or the entered password does not match the second password")
+            print(
+                "Error: Not all fields have been filled, or the entered password does not match the second password"
+            )
             print("Please try again...")
             self.register_window.destroy()
             self.init_register()
@@ -162,12 +224,13 @@ class Client(tk.Tk):
         self.send_user_data(0, dict(zip(keys, values)))
         self.register_window.destroy()
 
-
     def login_user(self):
         username = self.login_entries[0].get()
         password = self.login_entries[1].get()
         if "" in (username, password):
-            print("Error: Not all fields have been filled, or the entered password does not match the second password")
+            print(
+                "Error: Not all fields have been filled, or the entered password does not match the second password"
+            )
             print("Please try again...")
             self.login_window.destroy()
             self.init_login()
@@ -180,7 +243,9 @@ class Client(tk.Tk):
     def forgot_password(self):
         email = self.email_entry.get()
         if email == "":
-            print("Error: Not all fields have been filled, or the entered password does not match the second password")
+            print(
+                "Error: Not all fields have been filled, or the entered password does not match the second password"
+            )
             print("Please try again...")
             self.forgot_password_window.destroy()
             self.init_forgot_password()
@@ -207,15 +272,16 @@ class Client(tk.Tk):
             None
         """
         try:
-            self.cli_sock.connect((self.ip, self.port))
+            try:
+                self.cli_sock.connect((self.ip, self.port))
+            except Exception as e:
+                print(
+                    f"Error while trying to connect. Check IP or port -- {self.ip}:{self.port}"
+                )
             print(f"Connected to the server {self.ip}:{self.port}")
             self.init_home()
         except Exception as e:
-            print(
-                f"Error while trying to connect. Check IP or port -- {self.ip}:{self.port}"
-            )
             print(f"Error: {e}")
-
         self.cli_sock.close()
 
 
@@ -226,6 +292,6 @@ if __name__ == "__main__":
         c = Client(ip, port)
         c.run()
     else:
-        #print("Usage: python client.py <ip> <port>")
+        # print("Usage: python client.py <ip> <port>")
         c = Client(IP, PORT)
         c.run()
