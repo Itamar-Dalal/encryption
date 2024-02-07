@@ -4,7 +4,6 @@ import tcp_by_size
 from socket import socket, AF_INET, SOCK_STREAM
 from tcp_by_size import send_with_size, recv_by_size
 from sys import argv
-from functools import partial
 
 
 IP = "127.0.0.1"
@@ -216,7 +215,6 @@ class Client:
                 "Error: Not all fields have been filled, or the entered password does not match the second password"
             )
             print("Please try again...")
-            self.register_window.destroy()
             self.init_register()
             return
         keys = ["Username", "Email Address", "Password"]
@@ -232,7 +230,6 @@ class Client:
                 "Error: Not all fields have been filled, or the entered password does not match the second password"
             )
             print("Please try again...")
-            self.login_window.destroy()
             self.init_login()
             return
         keys = ["Username", "Password"]
@@ -247,7 +244,6 @@ class Client:
                 "Error: Not all fields have been filled, or the entered password does not match the second password"
             )
             print("Please try again...")
-            self.forgot_password_window.destroy()
             self.init_forgot_password()
             return
         self.send_user_data(2, {"Email Address", email})
@@ -258,11 +254,11 @@ class Client:
     ) -> None:  # request_type: 0 - register, 1 - login, 2 - forgot password
         match request_type:
             case 0:
-                msg = f"|REGS|{user_data['Username']}|{user_data['Email Address']}|{user_data['Password']}"
+                msg = f"|REGS|{user_data['Username']}|{user_data['Email Address']}|{user_data['Password']}|"
             case 1:
-                msg = f"|LOGN|{user_data['Username']}|{user_data['Password']}"
+                msg = f"|LOGN|{user_data['Username']}|{user_data['Password']}|"
             case 2:
-                msg = f"|FRGP|{user_data['Email Address']}"
+                msg = f"|FRGP|{user_data['Email Address']}|"
         send_with_size(self.cli_sock, msg.encode())
 
     def run(self) -> None:

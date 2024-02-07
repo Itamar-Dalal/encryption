@@ -1,9 +1,11 @@
 from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
 from threading import Thread
+from tcp_by_size import send_with_size, recv_by_size
 from sys import argv
 
 IP: str = "0.0.0.0"
 PORT: int = 1234
+
 
 class Server:
     def __init__(self, ip: str, port: int) -> None:
@@ -15,7 +17,39 @@ class Server:
         self.srv_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 
     @staticmethod
-    def handle_client(cli_sock, id, addr):
+    def handle_client(cli_sock, id, addr) -> None:
+        request = recv_by_size(cli_sock)
+        if not request:
+            print(
+                f"Error receiving data from client: {id, addr}, closing connection..."
+            )
+            cli_sock.close()
+            return
+        opcode = request.split("|")[1]
+        match opcode:
+            case "REGS":
+                Server.handle_register(cli_sock, request)
+            case "LOGN":
+                Server.handle_login(cli_sock, request)
+            case "FRGP":
+                Server.handle_forgot_password(cli_sock, request)
+            case _:
+                print(
+                    f"The request from client: {id, addr} is not valid, closing connection..."
+                )
+                cli_sock.close()
+                return
+
+    @staticmethod
+    def handle_register(cli_sock, request):
+        pass
+
+    @staticmethod
+    def handle_login(cli_sock, request):
+        pass
+
+    @staticmethod
+    def handle_forgot_password(cli_sock, request):
         pass
 
     def run(self) -> None:
@@ -52,7 +86,7 @@ class Server:
                 except Exception as e:
                     print(f"Error joining thread: {e}")
             self.srv_sock.close()
-        
+
 
 if __name__ == "__main__":
     if len(argv) == 3:
@@ -61,6 +95,6 @@ if __name__ == "__main__":
         s = Server(ip, port)
         s.run()
     else:
-        #print("Usage: python server.py <ip> <port>")
+        # print("Usage: python server.py <ip> <port>")
         s = Server(IP, PORT)
         s.run()
