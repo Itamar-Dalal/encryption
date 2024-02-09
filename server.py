@@ -41,21 +41,27 @@ class Server:
             opcode = request.split("|")[1]
             match opcode:
                 case "REGS":
-                    Server.handle_register(cli_sock, request, db_handler)
+                    Server.handle_register(cli_sock, request, db_handler, id, addr)
                 case "LOGN":
                     Server.handle_login(cli_sock, request, db_handler)
                 case "FRGP":
-                    result = Server.handle_forgot_password(cli_sock, request, id, addr, db_handler) # (code, username)
+                    result = Server.handle_forgot_password(
+                        cli_sock, request, id, addr, db_handler
+                    )  # (code, username)
                 case "CODE":
                     if result:
-                        is_code_match = Server.handle_password_code(cli_sock, request, result[0])
+                        is_code_match = Server.handle_password_code(
+                            cli_sock, request, result[0]
+                        )
                     else:
                         send_with_size(
                             cli_sock, f"|EROR|2|".encode()
                         )  # trying to submit code before getting the code
                 case "PWUP":
                     if is_code_match:
-                        (is_code_match, result) = Server.handle_update_password(cli_sock, request, result, id, addr, db_handler)
+                        (is_code_match, result) = Server.handle_update_password(
+                            cli_sock, request, result, id, addr, db_handler
+                        )
                     else:
                         send_with_size(
                             cli_sock, f"|EROR|6|".encode()
@@ -65,12 +71,56 @@ class Server:
                         f"The request from client: {id, addr} is not valid, closing connection..."
                     )
                     send_with_size(
-                        cli_sock, f"|EROR|3|".encode()
+                        cli_sock, f"|EROR|8|".encode()
                     )  # request is not valid
 
     @staticmethod
-    def handle_register(cli_sock, request, db_handler):
-        pass
+    def handle_register(cli_sock, request, db_handler, id, addr):
+        try:
+            request = request.split("|")
+            username = request[2]
+            email = request[3]
+            password = request[4]
+            if not username:
+                print(
+                    f"The username ({username}) received by client: {id, addr} is not a valid username"
+                )
+                send_with_size(cli_sock, f"|EROR|9|".encode())  # username is not valid
+            elif not bool(
+                match(r"[^@]+@[^@]+\.[^@]+", email)
+            ):  # check if the email received is valid
+                print(
+                    f"The email ({email}) received by client: {id, addr} is not a valid email address"
+                )
+                send_with_size(
+                    cli_sock, f"|EROR|4|".encode()
+                )  # email is not a valid email address
+            elif not password:
+                print(
+                    f"The password ({password}) received by client: {id, addr} is not valid"
+                )
+                send_with_size(cli_sock, f"|EROR|3|".encode())  # password is not valid
+            elif db_handler.is_username_exist(username):
+                print(
+                    f"The username ({username}) received by client: {id, addr} is already in use"
+                )
+                send_with_size(
+                    cli_sock, f"|EROR|10|".encode()
+                )  # username already in use
+            elif db_handler.is_email_exist(email):
+                print(
+                    f"The email ({email}) received by client: {id, addr} is already in use"
+                )
+                send_with_size(cli_sock, f"|EROR|11|".encode())  # email already in use
+            else:
+                db_handler.save_user(username, email, password)
+                print(f"The user {username} has successfully registered")
+                send_with_size(cli_sock, f"|REGK|".encode())
+        except Exception as e:
+            print(f"Error while trying to register the new user of client: {id, addr}, {e}")
+            send_with_size(
+                cli_sock, f"|EROR|1|".encode()
+            )  # server had problems while dealing with the request
 
     @staticmethod
     def handle_login(cli_sock, request, db_handler):
@@ -136,17 +186,21 @@ class Server:
             return True
         send_with_size(cli_sock, f"|CDEW|".encode())
         return False
-    
+
     @staticmethod
-    def handle_update_password(cli_sock, request, user_data, id, addr, db_handler) -> (bool, (str, str)):
+    def handle_update_password(
+        cli_sock, request, user_data, id, addr, db_handler
+    ) -> (bool, (str, str)):
         _, username = user_data
-        password = request.split('|')[2]
+        password = request.split("|")[2]
         if password:
             try:
                 db_handler.update_user_password(username, password)
                 send_with_size(cli_sock, f"|PWUK|".encode())
             except Exception as e:
-                print(f"Error while updating the password of client: {id, addr}, user: {username}, to password: {password}")
+                print(
+                    f"Error while updating the password of client: {id, addr}, user: {username}, to password: {password}"
+                )
                 print(f"Error: {e}")
                 send_with_size(
                     cli_sock, f"|EROR|1|".encode()
@@ -154,14 +208,12 @@ class Server:
             finally:
                 return (False, (None, None))
         else:
-            print(f"New password ({password}) received by client: {id, addr} is not valid")
+            print(
+                f"New password ({password}) received by client: {id, addr} is not valid"
+            )
             print(f"Error: {e}")
-            send_with_size(
-                cli_sock, f"|EROR|3|".encode()
-            )  # request is not valid
+            send_with_size(cli_sock, f"|EROR|3|".encode())  # password is not valid
             return (True, user_data)
-
-
 
     def run(self) -> None:
         """Run the server application.

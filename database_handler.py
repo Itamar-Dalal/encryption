@@ -14,14 +14,20 @@ class DataBaseHandler:
                                 password TEXT NOT NULL)''')
         self.conn.commit()
 
-    def is_user_exist(self, username):
+    def is_username_exist(self, username):
         self.cursor.execute("SELECT * FROM users WHERE username=?", (username,))
         return self.cursor.fetchone() is not None
 
+    def is_email_exist(self, email):
+        self.cursor.execute("SELECT * FROM users WHERE email=?", (email,))
+        return self.cursor.fetchone() is not None
+    
     def get_username(self, email) -> str:
+        if not self.is_email_exist(email):
+            return None
         self.cursor.execute("SELECT * FROM users WHERE email=?", (email,))
         result = self.cursor.fetchone()
-        return result[0] if result else None
+        return result[0]
     
     def is_password_ok(self, username, password):
         self.cursor.execute("SELECT password FROM users WHERE username=?", (username,))
@@ -60,3 +66,4 @@ if __name__ == "__main__":
     if not db_test.is_user_exist("itamar"):
         db_test.save_user("itamar", "dalalitamar@gmail.com", "dllilo05")
     print(db_test.is_user_exist("itamar"))
+    print(db_test.is_email_exist("dalalitamar@gmail.com"))

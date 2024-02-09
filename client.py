@@ -4,7 +4,7 @@ import tcp_by_size
 from socket import socket, AF_INET, SOCK_STREAM
 from tcp_by_size import send_with_size, recv_by_size
 from sys import argv, exit
-
+from re import match
 
 IP = "127.0.0.1"
 PORT = 1234
@@ -293,9 +293,11 @@ class Client:
         if (
             "" in (username, email, password, verify_password)
             or password != verify_password
+            or not bool(
+                match(r"[^@]+@[^@]+\.[^@]+", email))
         ):
             print(
-                "Error: Not all fields have been filled, or the entered password does not match the second password"
+                "Error: Not all fields have been filled, or the entered password does not match the second password, or the email entered is not valid"
             )
             print("Please try again...")
             self.init_register()
@@ -303,6 +305,19 @@ class Client:
         keys = ["Username", "Email Address", "Password"]
         values = [username, email, password]
         self.send_data(0, dict(zip(keys, values)))
+        response = recv_by_size(self.cli_sock).split("|")
+        match response[1]:
+            case "REGK":
+                print(f"The user {username} has successfully registered")
+                self.init_home()
+            case "EROR":
+                match response[2]:
+                    case "": # to do: call init_register with right err arg
+                        pass
+                    case _:
+                        self.invalid_response()
+            case _:
+                self.invalid_response()
 
     def login_user(self):
         username = self.login_entries[0].get()
