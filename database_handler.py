@@ -22,19 +22,26 @@ class DataBaseHandler:
         self.cursor.execute("SELECT * FROM users WHERE email=?", (email,))
         return self.cursor.fetchone() is not None
     
+    def get_email(self, username):
+        if not self.is_username_exist(username):
+            return None
+        self.cursor.execute("SELECT email FROM users WHERE username=?", (username,))
+        email = self.cursor.fetchone()[0]
+        return email
+    
     def get_username(self, email) -> str:
         if not self.is_email_exist(email):
             return None
-        self.cursor.execute("SELECT * FROM users WHERE email=?", (email,))
-        result = self.cursor.fetchone()
-        return result[0]
+        self.cursor.execute("SELECT username FROM users WHERE email=?", (email,))
+        username = self.cursor.fetchone()[0]
+        return username
     
     def is_password_ok(self, username, password):
         self.cursor.execute("SELECT password FROM users WHERE username=?", (username,))
-        stored_password = self.cursor.fetchone()
+        stored_password = self.cursor.fetchone()[0]
         if stored_password:
             hashed_password = sha256(password.encode()).hexdigest()
-            return hashed_password == stored_password[0]
+            return hashed_password == stored_password
         return False
 
     def save_user(self, username, email, password) -> None:
@@ -56,14 +63,16 @@ class DataBaseHandler:
 if __name__ == "__main__":
     # example usage:
     db_test = DataBaseHandler()
-    if not db_test.is_user_exist("user1"):
+    if not db_test.is_username_exist("user1"):
         db_test.save_user("user1", "user1@example.com", "password123")
-    print(db_test.is_user_exist("user1"))
+    print(db_test.is_username_exist("user1"))
     print(db_test.is_password_ok("user1", "password123"))
     print(db_test.is_password_ok("user1", "pass123"))
     db_test.update_user_password("user1", "newpassword456")
     print(db_test.get_username("user1@example.com"))
-    if not db_test.is_user_exist("itamar"):
+    if not db_test.is_username_exist("itamar"):
         db_test.save_user("itamar", "dalalitamar@gmail.com", "dllilo05")
-    print(db_test.is_user_exist("itamar"))
+    print(db_test.is_username_exist("itamar"))
     print(db_test.is_email_exist("dalalitamar@gmail.com"))
+    print(db_test.get_email("itamar"))
+    print(db_test.is_password_ok("itamar", "dllilo05"))

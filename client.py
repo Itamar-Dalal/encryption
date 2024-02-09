@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import font
-import tcp_by_size
 from socket import socket, AF_INET, SOCK_STREAM
 from tcp_by_size import send_with_size, recv_by_size
 from sys import argv, exit
@@ -285,6 +284,45 @@ class Client:
         )
         login_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
 
+    @close_window
+    def init_user_home(self, username, email, err=None):
+        self.user_home_window = tk.Tk()
+        self.running_window = self.user_home_window
+        self.user_home_window.title("User Home")
+        self.user_home_window.geometry(f"300x220")
+        self.user_home_window.configure(bg="#1E2533")
+        header_font = font.Font(family="Helvetica", size=14, weight="bold")
+        label_font = font.Font(family="Helvetica", size=10, weight="bold")
+        tk.Label(
+            self.user_home_window,
+            text="User Home",
+            font=header_font,
+            bg="#1E2533",
+            fg="#E0E6F0",
+        ).pack(pady=20, padx=10, ipadx=10, ipady=5)
+        tk.Label(
+            self.user_home_window,
+            text=f"User Name: {username}",
+            bg="#1E2533",
+            fg="#E0E6F0",
+            font=label_font,
+        ).pack(pady=5)
+        tk.Label(
+            self.user_home_window,
+            text=f"Email Address: {email}",
+            bg="#1E2533",
+            fg="#E0E6F0",
+            font=label_font,
+        ).pack(pady=5)
+        login_button = tk.Button(
+            self.user_home_window,
+            text="Logout",
+            command=self.init_home,
+            **self.button_style,
+        )
+        login_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
+
+
     def register_user(self):
         username = self.register_entries[0].get()
         email = self.register_entries[1].get()
@@ -293,8 +331,7 @@ class Client:
         if (
             "" in (username, email, password, verify_password)
             or password != verify_password
-            or not bool(
-                match(r"[^@]+@[^@]+\.[^@]+", email))
+            or not bool(match(r"[^@]+@[^@]+\.[^@]+", email))
         ):
             print(
                 "Error: Not all fields have been filled, or the entered password does not match the second password, or the email entered is not valid"
@@ -312,7 +349,7 @@ class Client:
                 self.init_home()
             case "EROR":
                 match response[2]:
-                    case "": # to do: call init_register with right err arg
+                    case "":  # to do: call init_register with right err arg
                         pass
                     case _:
                         self.invalid_response()
@@ -330,6 +367,27 @@ class Client:
         keys = ["Username", "Password"]
         values = [username, password]
         self.send_data(1, dict(zip(keys, values)))
+        response = recv_by_size(self.cli_sock).split("|")
+        match response[1]:
+            case "LOGK":
+                username = response[2]
+                email = response[3]
+                self.init_user_home(username, email)
+            case "EROR":
+                # todo: check the error code and call init_forgot_password() with right error arg
+                match response[2]:
+                    case "12":
+                        print(f"The username ({username}) does not exist")
+                        print("Please try again...")
+                        self.init_login()
+                    case "13":
+                        print(f"The password ({password}) is incorrect")
+                        print("Please try again...")
+                        self.init_login()
+                    case _:
+                        self.invalid_response()
+            case _:
+                self.invalid_response()
 
     def forgot_password(self):
         email = self.email_entry.get()
@@ -346,8 +404,9 @@ class Client:
             case "SNTC":
                 self.init_password_code()
             case "EROR":
-                error_code = response[1]
                 # todo: check the error code and call init_forgot_password() with right error arg
+                #match response[2]:
+                pass
             case _:
                 self.invalid_response()
 
@@ -371,8 +430,9 @@ class Client:
                 self.init_password_code()
                 return
             case "EROR":
-                error_code = response[1]
                 # todo: check the error code and call init_forgot_password() with right error arg
+                #match response[2]:
+                pass
             case _:
                 self.invalid_response()
 
@@ -393,12 +453,14 @@ class Client:
                 self.init_login()
             case "EROR":
                 match response[2]:
-                    case "1":
-                        print("The password was not updated due to errors in the server")
+                    case "12":
+                        print(
+                            "The password was not updated due to errors in the server"
+                        )
                         print("Please try again...")
                         self.init_forgot_password()
-                    case "3":
-                        print("The password submited is not valid")
+                    case "13":
+                        print("The password submitted is not valid")
                         print("Please try again...")
                         self.init_update_password()
                     case _:
@@ -425,9 +487,7 @@ class Client:
         send_with_size(self.cli_sock, msg.encode())
 
     def invalid_response(self):
-        print(
-            f"The response sent from the server is not valid, closing connection..."
-        )
+        print(f"The response sent from the server is not valid, closing connection...")
         self.cli_sock.close()
         exit()
 

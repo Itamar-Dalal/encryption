@@ -43,7 +43,7 @@ class Server:
                 case "REGS":
                     Server.handle_register(cli_sock, request, db_handler, id, addr)
                 case "LOGN":
-                    Server.handle_login(cli_sock, request, db_handler)
+                    Server.handle_login(cli_sock, request, db_handler, id, addr)
                 case "FRGP":
                     result = Server.handle_forgot_password(
                         cli_sock, request, id, addr, db_handler
@@ -123,8 +123,19 @@ class Server:
             )  # server had problems while dealing with the request
 
     @staticmethod
-    def handle_login(cli_sock, request, db_handler):
-        pass
+    def handle_login(cli_sock, request, db_handler, id, addr):
+        request = request.split('|')
+        username = request[2]
+        password = request[3]
+        if not db_handler.is_username_exist(username):
+            print(f"client: {id, addr} tried to login with a username that does not exist")
+            send_with_size(cli_sock, f"|EROR|12|".encode()) # username does not exist
+        elif db_handler.is_password_ok(username, password):
+            send_with_size(cli_sock, f"|LOGK|{username}|{db_handler.get_email(username)}|".encode())
+            print(f"The user ({username}) of client: {id, addr} has logged in")
+        else:
+            print(f"Client: {id, addr} sent an incorrect password ({password}) for user: {username}")
+            send_with_size(cli_sock, f"|EROR|13|".encode()) # incorrect password 
 
     @staticmethod
     def handle_forgot_password(cli_sock, request, id, addr, db_handler):
