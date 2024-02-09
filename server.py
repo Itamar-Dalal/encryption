@@ -2,7 +2,7 @@ from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
 from threading import Thread
 from tcp_by_size import send_with_size, recv_by_size
 from sys import argv
-import json
+from database_handler import DataBaseHandler
 import smtplib, ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -27,8 +27,9 @@ class Server:
 
     @staticmethod
     def handle_client(cli_sock, id, addr) -> None:
-        code = None
+        result = None
         is_code_match = False
+        db_handler = DataBaseHandler()
         while True:
             request = recv_by_size(cli_sock)
             if not request:
@@ -40,21 +41,21 @@ class Server:
             opcode = request.split("|")[1]
             match opcode:
                 case "REGS":
-                    Server.handle_register(cli_sock, request)
+                    Server.handle_register(cli_sock, request, db_handler)
                 case "LOGN":
-                    Server.handle_login(cli_sock, request)
+                    Server.handle_login(cli_sock, request, db_handler)
                 case "FRGP":
-                    code = Server.handle_forgot_password(cli_sock, request, id, addr)
+                    result = Server.handle_forgot_password(cli_sock, request, id, addr, db_handler) # (code, username)
                 case "CODE":
-                    if code:
-                        is_code_match = Server.handle_password_code(cli_sock, request, code)
+                    if result:
+                        is_code_match = Server.handle_password_code(cli_sock, request, result[0])
                     else:
                         send_with_size(
                             cli_sock, f"|EROR|2|".encode()
                         )  # trying to submit code before getting the code
                 case "PWUP":
                     if is_code_match:
-                        Server.handle_update_password(cli_sock, request)
+                        (is_code_match, result) = Server.handle_update_password(cli_sock, request, result, id, addr, db_handler)
                     else:
                         send_with_size(
                             cli_sock, f"|EROR|6|".encode()
@@ -68,15 +69,15 @@ class Server:
                     )  # request is not valid
 
     @staticmethod
-    def handle_register(cli_sock, request):
+    def handle_register(cli_sock, request, db_handler):
         pass
 
     @staticmethod
-    def handle_login(cli_sock, request):
+    def handle_login(cli_sock, request, db_handler):
         pass
 
     @staticmethod
-    def handle_forgot_password(cli_sock, request, id, addr):
+    def handle_forgot_password(cli_sock, request, id, addr, db_handler):
         try:
             receiver_email = request.split("|")[2]
             if not bool(
@@ -88,6 +89,15 @@ class Server:
                 send_with_size(
                     cli_sock, f"|EROR|4|".encode()
                 )  # email received is not a valid email address
+                return None
+            username = db_handler.get_username(receiver_email)
+            if username is None:
+                print(
+                    f"The email ({receiver_email}) received by client: {id, addr} does not appear in the user table"
+                )
+                send_with_size(
+                    cli_sock, f"|EROR|7|".encode()
+                )  # email received does not appear in the user table
                 return None
             message = MIMEMultipart("alternative")
             message["Subject"] = "Code for a new password"
@@ -106,16 +116,16 @@ class Server:
                 f"Email was sent successfully from {Server.HOST_EMAIL} to {receiver_email}"
             )
             send_with_size(cli_sock, f"|SNTC|".encode())
-            return code
+            return (code, username)
         except Exception as e:
             print(f"Error while sending the email to client: {id, addr}, {e}")
             send_with_size(
                 cli_sock, f"|EROR|1|".encode()
-            )  # error while sending the email to the client
+            )  # server had problems while dealing with the request
             return None
 
     @staticmethod
-    def handle_password_code(cli_sock, request, code):
+    def handle_password_code(cli_sock, request, code) -> bool:
         client_code: str = request.split("|")[2]
         if len(client_code) != 6 or not client_code.isnumeric():
             print(f"The code received from the client is not valid")
@@ -128,10 +138,31 @@ class Server:
         return False
     
     @staticmethod
-    def handle_update_password(cli_sock, request):
+    def handle_update_password(cli_sock, request, user_data, id, addr, db_handler) -> (bool, (str, str)):
+        _, username = user_data
         password = request.split('|')[2]
-        print(password)
-        # to do: update password, if ok - send to client 'PWUK', else send 'PWUF'
+        if password:
+            try:
+                db_handler.update_user_password(username, password)
+                send_with_size(cli_sock, f"|PWUK|".encode())
+            except Exception as e:
+                print(f"Error while updating the password of client: {id, addr}, user: {username}, to password: {password}")
+                print(f"Error: {e}")
+                send_with_size(
+                    cli_sock, f"|EROR|1|".encode()
+                )  # server had problems while dealing with the request
+            finally:
+                return (False, (None, None))
+        else:
+            print(f"New password ({password}) received by client: {id, addr} is not valid")
+            print(f"Error: {e}")
+            send_with_size(
+                cli_sock, f"|EROR|3|".encode()
+            )  # request is not valid
+            return (True, user_data)
+
+
+
     def run(self) -> None:
         """Run the server application.
 

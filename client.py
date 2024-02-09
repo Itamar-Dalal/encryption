@@ -376,10 +376,18 @@ class Client:
             case "PWUK":
                 print(f"The password has been successfully updated to {password}")
                 self.init_login()
-            case "PWUF":
-                print("The password was not updated due to errors in the server")
-                print("Please try again...")
-                self.init_forgot_password()
+            case "EROR":
+                match response[2]:
+                    case "1":
+                        print("The password was not updated due to errors in the server")
+                        print("Please try again...")
+                        self.init_forgot_password()
+                    case "3":
+                        print("The password submited is not valid")
+                        print("Please try again...")
+                        self.init_update_password()
+                    case _:
+                        self.invalid_response()
             case _:
                 self.invalid_response()
 
