@@ -13,6 +13,7 @@ from re import match
 '''
 TODO: support sending email that includes code after getting register request
 TODO: support receiving code request and check if its valid and if yes then register the user (use the handle_code function)
+TODO: add try and except (except may send an error code) and dcostring to each function
 '''
 IP: str = "0.0.0.0"
 PORT: int = 1234
