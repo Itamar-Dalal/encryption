@@ -295,7 +295,7 @@ class Client:
         label_font = font.Font(family="Helvetica", size=10, weight="bold")
         tk.Label(
             self.user_home_window,
-            text="User Home",
+            text="User Home Page",
             font=header_font,
             bg="#1E2533",
             fg="#E0E6F0",
@@ -374,7 +374,6 @@ class Client:
                 email = response[3]
                 self.init_user_home(username, email)
             case "EROR":
-                # todo: check the error code and call init_forgot_password() with right error arg
                 match response[2]:
                     case "12":
                         print(f"The username ({username}) does not exist")

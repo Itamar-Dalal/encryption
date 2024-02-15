@@ -1,5 +1,5 @@
 from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
-from threading import Thread
+from threading import Thread, Lock
 from tcp_by_size import send_with_size, recv_by_size
 from sys import argv
 from database_handler import DataBaseHandler
@@ -24,9 +24,10 @@ class Server:
         self.srv_sock.bind((ip, port))
         self.srv_sock.listen(20)
         self.srv_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        self.lock = Lock()
 
     @staticmethod
-    def handle_client(cli_sock, id, addr) -> None:
+    def handle_client(cli_sock, id, addr, lock) -> None:
         result = None
         is_code_match = False
         db_handler = DataBaseHandler()
@@ -41,12 +42,12 @@ class Server:
             opcode = request.split("|")[1]
             match opcode:
                 case "REGS":
-                    Server.handle_register(cli_sock, request, db_handler, id, addr)
+                    Server.handle_register(cli_sock, request, db_handler, id, addr, lock)
                 case "LOGN":
-                    Server.handle_login(cli_sock, request, db_handler, id, addr)
+                    Server.handle_login(cli_sock, request, db_handler, id, addr, lock)
                 case "FRGP":
                     result = Server.handle_forgot_password(
-                        cli_sock, request, id, addr, db_handler
+                        cli_sock, request, id, addr, db_handler, lock
                     )  # (code, username)
                 case "CODE":
                     if result:
@@ -60,7 +61,7 @@ class Server:
                 case "PWUP":
                     if is_code_match:
                         (is_code_match, result) = Server.handle_update_password(
-                            cli_sock, request, result, id, addr, db_handler
+                            cli_sock, request, result, id, addr, db_handler, lock
                         )
                     else:
                         send_with_size(
@@ -75,7 +76,7 @@ class Server:
                     )  # request is not valid
 
     @staticmethod
-    def handle_register(cli_sock, request, db_handler, id, addr):
+    def handle_register(cli_sock, request, db_handler, id, addr, lock):
         try:
             request = request.split("|")
             username = request[2]
@@ -100,45 +101,53 @@ class Server:
                     f"The password ({password}) received by client: {id, addr} is not valid"
                 )
                 send_with_size(cli_sock, f"|EROR|3|".encode())  # password is not valid
-            elif db_handler.is_username_exist(username):
+            elif Server.database_action(lock, db_handler.is_username_exist, username):
                 print(
                     f"The username ({username}) received by client: {id, addr} is already in use"
                 )
                 send_with_size(
                     cli_sock, f"|EROR|10|".encode()
                 )  # username already in use
-            elif db_handler.is_email_exist(email):
+            elif Server.database_action(lock, db_handler.is_email_exist, email):
                 print(
                     f"The email ({email}) received by client: {id, addr} is already in use"
                 )
                 send_with_size(cli_sock, f"|EROR|11|".encode())  # email already in use
             else:
-                db_handler.save_user(username, email, password)
+                Server.database_action(lock, db_handler.save_user, username, email, password)
                 print(f"The user {username} has successfully registered")
                 send_with_size(cli_sock, f"|REGK|".encode())
         except Exception as e:
-            print(f"Error while trying to register the new user of client: {id, addr}, {e}")
+            print(
+                f"Error while trying to register the new user of client: {id, addr}, {e}"
+            )
             send_with_size(
                 cli_sock, f"|EROR|1|".encode()
             )  # server had problems while dealing with the request
 
     @staticmethod
-    def handle_login(cli_sock, request, db_handler, id, addr):
-        request = request.split('|')
+    def handle_login(cli_sock, request, db_handler, id, addr, lock):
+        request = request.split("|")
         username = request[2]
         password = request[3]
-        if not db_handler.is_username_exist(username):
-            print(f"client: {id, addr} tried to login with a username that does not exist")
-            send_with_size(cli_sock, f"|EROR|12|".encode()) # username does not exist
-        elif db_handler.is_password_ok(username, password):
-            send_with_size(cli_sock, f"|LOGK|{username}|{db_handler.get_email(username)}|".encode())
+        if not Server.database_action(lock, db_handler.is_username_exist, username):
+            print(
+                f"client: {id, addr} tried to login with a username that does not exist"
+            )
+            send_with_size(cli_sock, f"|EROR|12|".encode())  # username does not exist
+        elif Server.database_action(lock, db_handler.is_password_ok, username, password):
+            send_with_size(
+                cli_sock, f"|LOGK|{username}|{Server.database_action(lock, db_handler.get_email, username)}|".encode()
+            )
             print(f"The user ({username}) of client: {id, addr} has logged in")
         else:
-            print(f"Client: {id, addr} sent an incorrect password ({password}) for user: {username}")
-            send_with_size(cli_sock, f"|EROR|13|".encode()) # incorrect password 
+            print(
+                f"Client: {id, addr} sent an incorrect password ({password}) for user: {username}"
+            )
+            send_with_size(cli_sock, f"|EROR|13|".encode())  # incorrect password
 
     @staticmethod
-    def handle_forgot_password(cli_sock, request, id, addr, db_handler):
+    def handle_forgot_password(cli_sock, request, id, addr, db_handler, lock):
         try:
             receiver_email = request.split("|")[2]
             if not bool(
@@ -151,7 +160,7 @@ class Server:
                     cli_sock, f"|EROR|4|".encode()
                 )  # email received is not a valid email address
                 return None
-            username = db_handler.get_username(receiver_email)
+            username = Server.database_action(lock, db_handler.get_username, receiver_email)
             if username is None:
                 print(
                     f"The email ({receiver_email}) received by client: {id, addr} does not appear in the user table"
@@ -200,13 +209,13 @@ class Server:
 
     @staticmethod
     def handle_update_password(
-        cli_sock, request, user_data, id, addr, db_handler
-    ) -> (bool, (str, str)):
+        cli_sock, request, user_data, id, addr, db_handler, lock
+    ) -> tuple[bool, (str, str)]:
         _, username = user_data
         password = request.split("|")[2]
         if password:
             try:
-                db_handler.update_user_password(username, password)
+                Server.database_action(lock, db_handler.update_user_password, username, password)
                 send_with_size(cli_sock, f"|PWUK|".encode())
             except Exception as e:
                 print(
@@ -225,6 +234,15 @@ class Server:
             print(f"Error: {e}")
             send_with_size(cli_sock, f"|EROR|3|".encode())  # password is not valid
             return (True, user_data)
+    
+    @staticmethod
+    def database_action(lock: Lock, func: callable, *args, **kwargs):
+        '''
+        This function prevents race condition using locks.
+        In reality, this function is useless because SQLite already supports locks (but I still added this for learning purposes).
+        '''
+        with lock:
+            return func(*args, **kwargs)
 
     def run(self) -> None:
         """Run the server application.
@@ -238,7 +256,7 @@ class Server:
             while True:
                 cli_sock, addr = self.srv_sock.accept()
                 t: Thread = Thread(
-                    target=Server.handle_client, args=(cli_sock, str(i), addr)
+                    target=Server.handle_client, args=(cli_sock, str(i), addr, self.lock)
                 )
                 t.start()
                 i += 1
