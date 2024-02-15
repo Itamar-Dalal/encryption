@@ -9,6 +9,11 @@ from email.mime.multipart import MIMEMultipart
 from random import randrange
 from re import match
 
+
+'''
+TODO: support sending email that includes code after getting register request
+TODO: support receiving code request and check if its valid and if yes then register the user (use the handle_code function)
+'''
 IP: str = "0.0.0.0"
 PORT: int = 1234
 
@@ -51,7 +56,7 @@ class Server:
                     )  # (code, username)
                 case "CODE":
                     if result:
-                        is_code_match = Server.handle_password_code(
+                        is_code_match = Server.handle_code(
                             cli_sock, request, result[0]
                         )
                     else:
@@ -195,7 +200,7 @@ class Server:
             return None
 
     @staticmethod
-    def handle_password_code(cli_sock, request, code) -> bool:
+    def handle_code(cli_sock, request, code) -> bool:
         client_code: str = request.split("|")[2]
         if len(client_code) != 6 or not client_code.isnumeric():
             print(f"The code received from the client is not valid")

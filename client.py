@@ -5,6 +5,10 @@ from tcp_by_size import send_with_size, recv_by_size
 from sys import argv, exit
 from re import match
 
+'''
+TODO: handle all error codes from the server
+TODO: add email verification page after register and send the code to the server
+'''
 IP = "127.0.0.1"
 PORT = 1234
 
