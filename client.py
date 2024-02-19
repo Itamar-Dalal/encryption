@@ -105,7 +105,7 @@ class Client:
         register_button = tk.Button(
             self.register_window,
             text="Register",
-            command=self.register_user,
+            command=self.verify_email,
             **self.button_style,
         )
         register_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
@@ -230,10 +230,10 @@ class Client:
             bg="#1E2533",
             fg="#E0E6F0",
         ).pack(pady=5)
-        self.code_entry = tk.Entry(
+        self.password_code_entry = tk.Entry(
             self.password_code_window, bg="#46516e", fg="#E0E6F0"
         )
-        self.code_entry.pack(pady=5, padx=10, ipadx=10, ipady=5)
+        self.password_code_entry.pack(pady=5, padx=10, ipadx=10, ipady=5)
         submit_code_button = tk.Button(
             self.password_code_window,
             text="Submit",
@@ -248,6 +248,46 @@ class Client:
             **self.button_style,
         )
         forgot_password_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
+
+    @close_window
+    def init_register_code(self, err=None):
+        self.register_code_window = tk.Tk()
+        self.running_window = self.register_code_window
+        self.register_code_window.title("Register Code")
+        self.register_code_window.geometry(f"300x280")
+        self.register_code_window.configure(bg="#1E2533")
+        header_font = font.Font(family="Helvetica", size=14, weight="bold")
+        tk.Label(
+            self.register_code_window,
+            text="Code for user registration",
+            font=header_font,
+            bg="#1E2533",
+            fg="#E0E6F0",
+        ).pack(pady=20, padx=10, ipadx=10, ipady=5)
+        tk.Label(
+            self.register_code_window,
+            text="Code:",
+            bg="#1E2533",
+            fg="#E0E6F0",
+        ).pack(pady=5)
+        self.register_code_entry = tk.Entry(
+            self.register_code_window, bg="#46516e", fg="#E0E6F0"
+        )
+        self.register_code_entry.pack(pady=5, padx=10, ipadx=10, ipady=5)
+        submit_code_button = tk.Button(
+            self.register_code_window,
+            text="Submit",
+            command=self.register_code,
+            **self.button_style,
+        )
+        submit_code_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
+        register_button = tk.Button(
+            self.register_code_window,
+            text="Return To Register",
+            command=self.init_register,
+            **self.button_style,
+        )
+        register_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
 
     @close_window
     def init_update_password(self, err=None):
@@ -328,15 +368,15 @@ class Client:
         login_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
 
 
-    def register_user(self):
-        username = self.register_entries[0].get()
-        email = self.register_entries[1].get()
-        password = self.register_entries[2].get()
+    def verify_email(self):
+        self.username = self.register_entries[0].get()
+        self.email = self.register_entries[1].get()
+        self.password = self.register_entries[2].get()
         verify_password = self.register_entries[3].get()
         if (
-            "" in (username, email, password, verify_password)
-            or password != verify_password
-            or not bool(match(r"[^@]+@[^@]+\.[^@]+", email))
+            "" in (self.username, self.email, self.password, verify_password)
+            or self.password != verify_password
+            or not bool(match(r"[^@]+@[^@]+\.[^@]+", self.email))
         ):
             print(
                 "Error: Not all fields have been filled, or the entered password does not match the second password, or the email entered is not valid"
@@ -344,17 +384,58 @@ class Client:
             print("Please try again...")
             self.init_register()
             return
+        keys = ["Email Address"]
+        values = [self.email]
+        self.send_data(5, dict(zip(keys, values)))
+        response = recv_by_size(self.cli_sock).split("|")
+        match response[1]:
+            case "SNTC":
+                self.init_register_code()
+            case "EROR":
+                # todo: check the error code and call init_register() with right error arg
+                #match response[2]:
+                pass
+            case _:
+                self.invalid_response()
+
+    def register_code(self):
+        code = self.register_code_entry.get()
+        if len(code) != 6 or not code.isnumeric():
+            print("Error: The entered code isn't 6 digits, or it's not a number")
+            print("Please try again...")
+            self.init_register_code()
+            return
+        keys = ["Code"]
+        values = [code]
+        self.send_data(3, dict(zip(keys, values)))
+        response = recv_by_size(self.cli_sock).split("|")
+        match response[1]:
+            case "CDEK":
+                self.register_user()
+            case "CDEW":
+                print(f"Error: the code entered does not match the real code")
+                print("Please try again...")
+                self.init_register_code()
+                return
+            case "EROR":
+                # todo: check the error code and call ... with right error arg
+                #match response[2]:
+                pass
+            case _:
+                self.invalid_response()
+
+    def register_user(self):
         keys = ["Username", "Email Address", "Password"]
-        values = [username, email, password]
+        values = [self.username, self.email, self.password]
         self.send_data(0, dict(zip(keys, values)))
         response = recv_by_size(self.cli_sock).split("|")
         match response[1]:
             case "REGK":
-                print(f"The user {username} has successfully registered")
+                print(f"The user {self.username} has successfully registered")
                 self.init_home()
             case "EROR":
                 match response[2]:
-                    case "":  # to do: call init_register with right err arg
+                    case "":  # to do: call init_register_code with right err arg
                         pass
                     case _:
                         self.invalid_response()
@@ -415,7 +496,7 @@ class Client:
                 self.invalid_response()
 
     def password_code(self):
-        code = self.code_entry.get()
+        code = self.password_code_entry.get()
         if len(code) != 6 or not code.isnumeric():
             print("Error: The entered code isn't 6 digits, or it's not a number")
             print("Please try again...")
@@ -479,15 +560,17 @@ class Client:
     ):  # request_type: 0 - register, 1 - login, 2 - forgot password, 3 - password code, 4 - update password
         match request_type:
             case 0:
-                msg = f"|REGS|{user_data['Username']}|{user_data['Email Address']}|{user_data['Password']}|"
+                msg = f"|REGS|{user_data['Username']}|{user_data['Password']}|"
             case 1:
                 msg = f"|LOGN|{user_data['Username']}|{user_data['Password']}|"
             case 2:
-                msg = f"|FRGP|{user_data['Email Address']}|"
+                msg = f"|VERC|{user_data['Email Address']}|"
             case 3:
                 msg = f"|CODE|{user_data['Code']}|"
             case 4:
                 msg = f"|PWUP|{user_data['Password']}|"
+            case 5:
+                msg = f"|REGC|{user_data['Email Address']}|"
         send_with_size(self.cli_sock, msg.encode())
 
     def invalid_response(self):

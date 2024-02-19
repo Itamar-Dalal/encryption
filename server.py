@@ -34,8 +34,10 @@ class Server:
 
     @staticmethod
     def handle_client(cli_sock, id, addr, lock) -> None:
-        result = None
-        is_code_match = False
+        result1 = None
+        result2 = None
+        is_code_match1 = False
+        is_code_match2 = False
         db_handler = DataBaseHandler()
         while True:
             request = recv_by_size(cli_sock)
@@ -48,26 +50,37 @@ class Server:
             opcode = request.split("|")[1]
             match opcode:
                 case "REGS":
-                    Server.handle_register(cli_sock, request, db_handler, id, addr, lock)
+                    if is_code_match1:
+                        is_code_match1 = Server.handle_register(cli_sock, request, result1, db_handler, id, addr, lock)
+                    else:
+                        send_with_size(
+                            cli_sock, f"|EROR|14|".encode()
+                        )  # trying to register before passing email verification
+                case "REGC":
+                    result1 = Server.send_code(cli_sock, request, db_handler, id, addr, lock) # (code, email)
                 case "LOGN":
                     Server.handle_login(cli_sock, request, db_handler, id, addr, lock)
-                case "FRGP":
-                    result = Server.handle_forgot_password(
+                case "VERC":
+                    result2 = Server.send_code(
                         cli_sock, request, id, addr, db_handler, lock
                     )  # (code, username)
                 case "CODE":
-                    if result:
-                        is_code_match = Server.handle_code(
-                            cli_sock, request, result[0]
+                    if result2:
+                        is_code_match2 = Server.handle_code(
+                            cli_sock, request, result2[0]
+                        )
+                    elif result1:
+                        is_code_match1 = Server.handle_code(
+                            cli_sock, request, result1[0]
                         )
                     else:
                         send_with_size(
                             cli_sock, f"|EROR|2|".encode()
                         )  # trying to submit code before getting the code
                 case "PWUP":
-                    if is_code_match:
-                        (is_code_match, result) = Server.handle_update_password(
-                            cli_sock, request, result, id, addr, db_handler, lock
+                    if is_code_match2:
+                        (is_code_match2, result2) = Server.handle_update_password(
+                            cli_sock, request, result2, id, addr, db_handler, lock
                         )
                     else:
                         send_with_size(
@@ -82,12 +95,12 @@ class Server:
                     )  # request is not valid
 
     @staticmethod
-    def handle_register(cli_sock, request, db_handler, id, addr, lock):
+    def handle_register(cli_sock, request, user_data, db_handler, id, addr, lock):
         try:
             request = request.split("|")
             username = request[2]
-            email = request[3]
-            password = request[4]
+            email = user_data[1]
+            password = request[3]
             if not username:
                 print(
                     f"The username ({username}) received by client: {id, addr} is not a valid username"
@@ -153,8 +166,9 @@ class Server:
             send_with_size(cli_sock, f"|EROR|13|".encode())  # incorrect password
 
     @staticmethod
-    def handle_forgot_password(cli_sock, request, id, addr, db_handler, lock):
+    def send_code(cli_sock, request, id, addr, db_handler, lock):
         try:
+            opcode = request.split("|")[1]
             receiver_email = request.split("|")[2]
             if not bool(
                 match(r"[^@]+@[^@]+\.[^@]+", receiver_email)
@@ -166,23 +180,29 @@ class Server:
                     cli_sock, f"|EROR|4|".encode()
                 )  # email received is not a valid email address
                 return None
-            username = Server.database_action(lock, db_handler.get_username, receiver_email)
-            if username is None:
-                print(
-                    f"The email ({receiver_email}) received by client: {id, addr} does not appear in the user table"
-                )
-                send_with_size(
-                    cli_sock, f"|EROR|7|".encode()
-                )  # email received does not appear in the user table
-                return None
             message = MIMEMultipart("alternative")
-            message["Subject"] = "Code for a new password"
             message["From"] = Server.HOST_EMAIL
             message["To"] = receiver_email
             code = str(randrange(100000, 1000000))  # 6 digit code
-            text = f"""\
-            Your code for changing the password is: {code}
-            """
+            if opcode == "VERC":
+                username = Server.database_action(lock, db_handler.get_username, receiver_email)
+                if username is None:
+                    print(
+                        f"The email ({receiver_email}) received by client: {id, addr} does not appear in the user table"
+                    )
+                    send_with_size(
+                        cli_sock, f"|EROR|7|".encode()
+                    )  # email received does not appear in the user table
+                    return None
+                message["Subject"] = "Code for a new password"
+                text = f"""\
+                Your code for changing the password is: {code}
+                """
+            else:
+                message["Subject"] = "Code for registration"
+                text = f"""\
+                Your code for registering a new user is: {code}
+                """
             message.attach(MIMEText(text, "plain"))
             context = ssl.create_default_context()
             with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
@@ -192,7 +212,7 @@ class Server:
                 f"Email was sent successfully from {Server.HOST_EMAIL} to {receiver_email}"
             )
             send_with_size(cli_sock, f"|SNTC|".encode())
-            return (code, username)
+            return (code, username) if opcode == "VERC" else (code, receiver_email)
         except Exception as e:
             print(f"Error while sending the email to client: {id, addr}, {e}")
             send_with_size(
@@ -240,6 +260,7 @@ class Server:
             print(f"Error: {e}")
             send_with_size(cli_sock, f"|EROR|3|".encode())  # password is not valid
             return (True, user_data)
+
     
     @staticmethod
     def database_action(lock: Lock, func: callable, *args, **kwargs):
