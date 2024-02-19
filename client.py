@@ -7,7 +7,6 @@ from re import match
 
 '''
 TODO: handle all error codes from the server
-TODO: add email verification page after register and send the code to the server
 TODO: add try and except and dcostring to each function
 '''
 IP = "127.0.0.1"

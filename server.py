@@ -11,8 +11,6 @@ from re import match
 
 
 '''
-TODO: support sending email that includes code after getting register request
-TODO: support receiving code request and check if its valid and if yes then register the user (use the handle_code function)
 TODO: add try and except (except may send an error code) and dcostring to each function
 '''
 IP: str = "0.0.0.0"
@@ -51,7 +49,8 @@ class Server:
             match opcode:
                 case "REGS":
                     if is_code_match1:
-                        is_code_match1 = Server.handle_register(cli_sock, request, result1, db_handler, id, addr, lock)
+                        Server.handle_register(cli_sock, request, result1, db_handler, id, addr, lock)
+                        is_code_match1 = False
                     else:
                         send_with_size(
                             cli_sock, f"|EROR|14|".encode()
