@@ -1,14 +1,15 @@
 import tkinter as tk
-from tkinter import font
+from tkinter import font, messagebox
 from socket import socket, AF_INET, SOCK_STREAM
 from tcp_by_size import send_with_size, recv_by_size
 from sys import argv, exit
 from re import match
+from error_codes import Errors
 
-'''
+"""
 TODO: handle all error codes from the server
 TODO: add try and except and dcostring to each function
-'''
+"""
 IP = "127.0.0.1"
 PORT = 1234
 
@@ -31,11 +32,17 @@ class Client:
         self.port = port
         self.cli_sock = socket(AF_INET, SOCK_STREAM)
         self.running_window = None
+        self.username = None
+        self.password = None
+        self.verify_password = None
+        self.email = None
+        self.forgot_password_email = None
 
     @close_window
     def init_home(self):
         self.home_window = tk.Tk()
         self.running_window = self.home_window
+        self.home_window.attributes('-topmost',True)
         self.home_window.title("Home")
         self.home_window.geometry(f"{self.width}x{self.height}")
         self.home_window.configure(bg="#1E2533")
@@ -73,8 +80,11 @@ class Client:
 
     @close_window
     def init_register(self, err=None):
+        if err:
+            messagebox.showerror("Register Error", err)
         self.register_window = tk.Tk()
         self.running_window = self.register_window
+        self.register_window.attributes('-topmost',True)
         self.register_window.title("Register")
         self.register_window.geometry(f"300x480")
         self.register_window.configure(bg="#1E2533")
@@ -118,8 +128,11 @@ class Client:
 
     @close_window
     def init_login(self, err=None):
+        if err:
+            messagebox.showerror("Login Error", err)
         self.login_window = tk.Tk()
         self.running_window = self.login_window
+        self.login_window.attributes('-topmost',True)
         self.login_window.title("Login")
         self.login_window.geometry(f"300x380")
         self.login_window.configure(bg="#1E2533")
@@ -168,10 +181,14 @@ class Client:
         )
         home_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
 
+
     @close_window
     def init_forgot_password(self, err=None):
+        if err:
+            messagebox.showerror("Forgot Password Error", err)
         self.forgot_password_window = tk.Tk()
         self.running_window = self.forgot_password_window
+        self.forgot_password_window.attributes('-topmost',True)
         self.forgot_password_window.title("Forgot Password")
         self.forgot_password_window.geometry(f"300x280")
         self.forgot_password_window.configure(bg="#1E2533")
@@ -208,12 +225,16 @@ class Client:
         )
         login_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
 
+
     @close_window
     def init_password_code(self, err=None):
+        if err:
+            messagebox.showerror("Password Code Error", err)
         self.password_code_window = tk.Tk()
         self.running_window = self.password_code_window
+        self.password_code_window.attributes('-topmost',True)
         self.password_code_window.title("Password Code")
-        self.password_code_window.geometry(f"300x280")
+        self.password_code_window.geometry(f"300x310")
         self.password_code_window.configure(bg="#1E2533")
         header_font = font.Font(family="Helvetica", size=14, weight="bold")
         tk.Label(
@@ -240,6 +261,13 @@ class Client:
             **self.button_style,
         )
         submit_code_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
+        send_again_button = tk.Button(
+            self.password_code_window,
+            text="Send Email Again",
+            command=self.forgot_password,
+            **self.button_style,
+        )
+        send_again_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
         forgot_password_button = tk.Button(
             self.password_code_window,
             text="Return To Forgot Password",
@@ -248,12 +276,16 @@ class Client:
         )
         forgot_password_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
 
+
     @close_window
     def init_register_code(self, err=None):
+        if err:
+            messagebox.showerror("Register Code Error", err)
         self.register_code_window = tk.Tk()
         self.running_window = self.register_code_window
+        self.register_code_window.attributes('-topmost',True)
         self.register_code_window.title("Register Code")
-        self.register_code_window.geometry(f"300x280")
+        self.register_code_window.geometry(f"300x310")
         self.register_code_window.configure(bg="#1E2533")
         header_font = font.Font(family="Helvetica", size=14, weight="bold")
         tk.Label(
@@ -280,6 +312,13 @@ class Client:
             **self.button_style,
         )
         submit_code_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
+        send_again_button = tk.Button(
+            self.register_code_window,
+            text="Send Email Again",
+            command=self.verify_email,
+            **self.button_style,
+        )
+        send_again_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
         register_button = tk.Button(
             self.register_code_window,
             text="Return To Register",
@@ -290,8 +329,11 @@ class Client:
 
     @close_window
     def init_update_password(self, err=None):
+        if err:
+            messagebox.showerror("Update Password Error", err)
         self.update_password_window = tk.Tk()
         self.running_window = self.update_password_window
+        self.update_password_window.attributes('-topmost',True)
         self.update_password_window.title("Update Password")
         self.update_password_window.geometry(f"300x280")
         self.update_password_window.configure(bg="#1E2533")
@@ -327,11 +369,13 @@ class Client:
             **self.button_style,
         )
         login_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
+        
 
     @close_window
-    def init_user_home(self, username, email, err=None):
+    def init_user_home(self, username, email):
         self.user_home_window = tk.Tk()
         self.running_window = self.user_home_window
+        self.user_home_window.attributes('-topmost',True)
         self.user_home_window.title("User Home")
         self.user_home_window.geometry(f"300x220")
         self.user_home_window.configure(bg="#1E2533")
@@ -366,22 +410,20 @@ class Client:
         )
         login_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
 
-
     def verify_email(self):
-        self.username = self.register_entries[0].get()
-        self.email = self.register_entries[1].get()
-        self.password = self.register_entries[2].get()
-        verify_password = self.register_entries[3].get()
+        if not self.username and not self.email and not self.password and not self.verify_password:
+            self.username = self.register_entries[0].get()
+            self.email = self.register_entries[1].get()
+            self.password = self.register_entries[2].get()
+            self.verify_password = self.register_entries[3].get()
         if (
-            "" in (self.username, self.email, self.password, verify_password)
-            or self.password != verify_password
+            "" in (self.username, self.email, self.password, self.verify_password)
+            or self.password != self.verify_password
             or not bool(match(r"[^@]+@[^@]+\.[^@]+", self.email))
         ):
-            print(
-                "Error: Not all fields have been filled, or the entered password does not match the second password, or the email entered is not valid"
+            self.init_register(
+                "Not all fields have been filled, or the entered password does not match the second password, or the email entered is not valid"
             )
-            print("Please try again...")
-            self.init_register()
             return
         keys = ["Email Address"]
         values = [self.email]
@@ -391,18 +433,28 @@ class Client:
             case "SNTC":
                 self.init_register_code()
             case "EROR":
-                # todo: check the error code and call init_register() with right error arg
-                #match response[2]:
-                pass
+                match response[2]:
+                    case Errors.INVALID_EMAIL:
+                        self.init_register("The email entered is not valid")
+                    case Errors.SERVER_ERROR:
+                        self.init_register(
+                            "The server had problems while dealing with the request"
+                        )
+                    case Errors.INVALID_REQUEST:
+                        self.init_register(
+                            "The request sent to the server was invalid"
+                        )
+                    case _:
+                        self.invalid_response()
             case _:
                 self.invalid_response()
 
     def register_code(self):
         code = self.register_code_entry.get()
         if len(code) != 6 or not code.isnumeric():
-            print("Error: The entered code isn't 6 digits, or it's not a number")
-            print("Please try again...")
-            self.init_register_code()
+            self.init_register_code(
+                "The entered code isn't 6 digits, or it's not a number"
+            )
             return
         keys = ["Code"]
         values = [code]
@@ -412,14 +464,19 @@ class Client:
             case "CDEK":
                 self.register_user()
             case "CDEW":
-                print(f"Error: the code entered does not match the real code")
-                print("Please try again...")
-                self.init_register_code()
-                return
+                self.init_register_code("The code entered does not match the real code")
             case "EROR":
-                # todo: check the error code and call ... with right error arg
-                #match response[2]:
-                pass
+                match response[2]:
+                    case Errors.INVALID_CODE:
+                        self.init_register_code(
+                            "The entered code isn't 6 digits, or it's not a number"
+                        )
+                    case Errors.INVALID_REQUEST:
+                        self.init_register_code(
+                            "The request sent to the server was invalid"
+                        )
+                    case _:
+                        self.invalid_response()
             case _:
                 self.invalid_response()
 
@@ -434,8 +491,24 @@ class Client:
                 self.init_home()
             case "EROR":
                 match response[2]:
-                    case "":  # to do: call init_register_code with right err arg
-                        pass
+                    case Errors.INVALID_USERNAME:
+                        self.init_register("The username entered is not valid")
+                    case Errors.INVALID_EMAIL:
+                        self.init_register("The email entered is not valid")
+                    case Errors.INVALID_PASSWORD:
+                        self.init_register("The password entered is not valid")
+                    case Errors.USERNAME_IN_USE:
+                        self.init_register("The username entered is already in use")
+                    case Errors.EMAIL_IN_USE:
+                        self.init_register("The email entered is already in use")
+                    case Errors.SERVER_ERROR:
+                        self.init_register(
+                            "The server had problems while dealing with the request"
+                        )
+                    case Errors.INVALID_REQUEST:
+                        self.init_register(
+                            "The request sent to the server was invalid"
+                        )
                     case _:
                         self.invalid_response()
             case _:
@@ -445,9 +518,7 @@ class Client:
         username = self.login_entries[0].get()
         password = self.login_entries[1].get()
         if "" in (username, password):
-            print("Error: Not all fields have been filled")
-            print("Please try again...")
-            self.init_login()
+            self.init_login("Not all fields have been filled")
             return
         keys = ["Username", "Password"]
         values = [username, password]
@@ -460,46 +531,61 @@ class Client:
                 self.init_user_home(username, email)
             case "EROR":
                 match response[2]:
-                    case "12":
-                        print(f"The username ({username}) does not exist")
-                        print("Please try again...")
-                        self.init_login()
-                    case "13":
-                        print(f"The password ({password}) is incorrect")
-                        print("Please try again...")
-                        self.init_login()
+                    case Errors.USERNAME_NOT_EXIST:
+                        self.init_login(f"The username ({username}) does not exist")
+                    case Errors.INCORRECT_PASSWORD:
+                        self.init_login(f"The password ({password}) is incorrect")
+                    case Errors.SERVER_ERROR:
+                        self.init_login(
+                            "The server had problems while dealing with the request"
+                        )
+                    case Errors.INVALID_REQUEST:
+                        self.init_login(
+                            "The request sent to the server was invalid"
+                        )
                     case _:
                         self.invalid_response()
             case _:
                 self.invalid_response()
 
     def forgot_password(self):
-        email = self.email_entry.get()
-        if email == "":
-            print("Error: Not all fields have been filled")
-            print("Please try again...")
-            self.init_forgot_password()
+        if not self.forgot_password_email:
+            self.forgot_password_email = self.email_entry.get()
+        if self.forgot_password_email == "":
+            self.init_forgot_password("Not all fields have been filled")
             return
         keys = ["Email Address"]
-        values = [email]
+        values = [self.forgot_password_email]
         self.send_data(2, dict(zip(keys, values)))
         response = recv_by_size(self.cli_sock).split("|")
         match response[1]:
             case "SNTC":
                 self.init_password_code()
             case "EROR":
-                # todo: check the error code and call init_forgot_password() with right error arg
-                #match response[2]:
-                pass
+                match response[2]:
+                    case Errors.INVALID_EMAIL:
+                        self.init_forgot_password("The email entered is not valid")
+                    case Errors.EMAIL_NOT_EXIST:
+                        self.init_forgot_password("The email entered does not exist")
+                    case Errors.SERVER_ERROR:
+                        self.init_forgot_password(
+                            "The server had problems while dealing with the request"
+                        )
+                    case Errors.INVALID_REQUEST:
+                        self.init_forgot_password(
+                            "The request sent to the server was invalid"
+                        )
+                    case _:
+                        self.invalid_response()
             case _:
                 self.invalid_response()
 
     def password_code(self):
         code = self.password_code_entry.get()
         if len(code) != 6 or not code.isnumeric():
-            print("Error: The entered code isn't 6 digits, or it's not a number")
-            print("Please try again...")
-            self.init_password_code()
+            self.init_password_code(
+                "The entered code isn't 6 digits, or it's not a number"
+            )
             return
         keys = ["Code"]
         values = [code]
@@ -509,23 +595,30 @@ class Client:
             case "CDEK":
                 self.init_update_password()
             case "CDEW":
-                print(f"Error: the code entered does not match the real code")
-                print("Please try again...")
-                self.init_password_code()
-                return
+                self.init_password_code("The code entered does not match the real code")
             case "EROR":
-                # todo: check the error code and call init_forgot_password() with right error arg
-                #match response[2]:
-                pass
+                match response[2]:
+                    case Errors.INVALID_CODE:
+                        self.init_password_code(
+                            "The entered code isn't 6 digits, or it's not a number"
+                        )
+                    case Errors.SERVER_ERROR:
+                        self.init_password_code(
+                            "The server had problems while dealing with the request"
+                        )
+                    case Errors.INVALID_REQUEST:
+                        self.init_password_code(
+                            "The request sent to the server was invalid"
+                        )
+                    case _:
+                        self.invalid_response()
             case _:
                 self.invalid_response()
 
     def update_password(self):
         password = self.password_entry.get()
         if password == "":
-            print("Error: Not all fields have been filled")
-            print("Please try again...")
-            self.init_update_password()
+            self.init_update_password("Not all fields have been filled")
             return
         keys = ["Password"]
         values = [password]
@@ -533,20 +626,23 @@ class Client:
         response = recv_by_size(self.cli_sock).split("|")
         match response[1]:
             case "PWUK":
-                print(f"The password has been successfully updated to {password}")
+                messagebox.showinfo(
+                    "Update Password Message",
+                    f"The password has been successfully updated to {password}",
+                )
                 self.init_login()
             case "EROR":
                 match response[2]:
-                    case "12":
-                        print(
-                            "The password was not updated due to errors in the server"
+                    case Errors.SERVER_ERROR:
+                        self.init_forgot_password(
+                            "The password was not updated due to server errors"
                         )
-                        print("Please try again...")
-                        self.init_forgot_password()
-                    case "13":
-                        print("The password submitted is not valid")
-                        print("Please try again...")
-                        self.init_update_password()
+                    case Errors.INVALID_PASSWORD:
+                        self.init_update_password("The password entered is not valid")
+                    case Errors.INVALID_REQUEST:
+                        self.init_update_password(
+                            "The request sent to the server was invalid"
+                        )
                     case _:
                         self.invalid_response()
             case _:
@@ -585,17 +681,16 @@ class Client:
         try:
             try:
                 self.cli_sock.connect((self.ip, self.port))
-                print(f"Connected to the server {self.ip}:{self.port}")
+                print(f"Connected to server {self.ip}:{self.port}")
             except Exception as e:
                 print(
                     f"Error while trying to connect. Check IP or port -- {self.ip}:{self.port}"
                 )
                 exit()
             self.init_home()
+            self.cli_sock.close()
         except Exception as e:
             print(f"Error: {e}")
-        self.cli_sock.close()
-
 
 if __name__ == "__main__":
     if len(argv) == 3:
