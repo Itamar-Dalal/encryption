@@ -10,9 +10,7 @@ from random import randrange
 from re import match
 from error_codes import Errors
 
-"""
-TODO: add try and except (except may send an error code) and dcostring to each function
-"""
+
 IP: str = "0.0.0.0"
 PORT: int = 1234
 
@@ -22,83 +20,93 @@ class Server:
     HOST_PASSWORD = "cdyu khpz hyhc poqn"
 
     def __init__(self, ip: str, port: int) -> None:
-        """Initialize the Server object."""
-        self.threads: list[Thread] = []
-        self.srv_sock: socket = socket(AF_INET, SOCK_STREAM)
-        self.srv_sock.bind((ip, port))
-        self.srv_sock.listen(20)
-        self.srv_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        self.lock = Lock()
+        try:
+            self.threads: list[Thread] = []
+            self.srv_sock: socket = socket(AF_INET, SOCK_STREAM)
+            self.srv_sock.bind((ip, port))
+            self.srv_sock.listen(20)
+            self.srv_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+            self.lock = Lock()
+        except Exception as e:
+            print(f"Error: {e}")
 
     @staticmethod
     def handle_client(cli_sock, id, addr, lock) -> None:
-        result1 = None
-        result2 = None
-        is_code_match1 = False
-        is_code_match2 = False
-        db_handler = DataBaseHandler()
-        while True:
-            request = recv_by_size(cli_sock)
-            if not request:
-                print(
-                    f"Error while receiving data from client: {id, addr}, closing connection..."
-                )
-                cli_sock.close()
-                break
-            opcode = request.split("|")[1]
-            match opcode:
-                case "REGS":
-                    if is_code_match1:
-                        Server.handle_register(
-                            cli_sock, request, result1, db_handler, id, addr, lock
-                        )
-                        is_code_match1 = False
-                    else:
-                        send_with_size(
-                            cli_sock,
-                            f"|EROR|{Errors.REGISTER_BEFORE_PASSING_EMAIL_VERIFICATION}|".encode(),
-                        )  # trying to register before passing email verification
-                case "REGC":
-                    result1 = Server.send_code(
-                        cli_sock, request, db_handler, id, addr, lock
-                    )  # (code, email)
-                case "LOGN":
-                    Server.handle_login(cli_sock, request, db_handler, id, addr, lock)
-                case "VERC":
-                    result2 = Server.send_code(
-                        cli_sock, request, id, addr, db_handler, lock
-                    )  # (code, username)
-                case "CODE":
-                    if result2:
-                        is_code_match2 = Server.handle_code(
-                            cli_sock, request, result2[0], id, addr
-                        )
-                    elif result1:
-                        is_code_match1 = Server.handle_code(
-                            cli_sock, request, result1[0], id, addr
-                        )
-                    else:
-                        send_with_size(
-                            cli_sock,
-                            f"|EROR|{Errors.SUBMIT_CODE_BEFORE_GETTING_IT}|".encode(),
-                        )  # trying to submit code before getting the code
-                case "PWUP":
-                    if is_code_match2:
-                        (is_code_match2, result2) = Server.handle_update_password(
-                            cli_sock, request, result2, id, addr, db_handler, lock
-                        )
-                    else:
-                        send_with_size(
-                            cli_sock,
-                            f"|EROR|{Errors.UPDATE_PASSWORD_BEFORE_PASSING_VERIFICATION}|".encode(),
-                        )  # trying to update password before passing verification
-                case _:
+        try:
+            result1 = None
+            result2 = None
+            is_code_match1 = False
+            is_code_match2 = False
+            db_handler = DataBaseHandler()
+            while True:
+                request = recv_by_size(cli_sock)
+                if not request:
                     print(
-                        f"The request from client: {id, addr} is not valid, closing connection..."
+                        f"Error while receiving data from client: {id, addr}, closing connection..."
                     )
-                    send_with_size(
-                        cli_sock, f"|EROR|{Errors.INVALID_REQUEST}|".encode()
-                    )  # request is not valid
+                    cli_sock.close()
+                    break
+                opcode = request.split("|")[1]
+                match opcode:
+                    case "REGS":
+                        if is_code_match1:
+                            Server.handle_register(
+                                cli_sock, request, result1, db_handler, id, addr, lock
+                            )
+                            is_code_match1 = False
+                        else:
+                            send_with_size(
+                                cli_sock,
+                                f"|EROR|{Errors.REGISTER_BEFORE_PASSING_EMAIL_VERIFICATION}|".encode(),
+                            )  # trying to register before passing email verification
+                    case "REGC":
+                        result1 = Server.send_code(
+                            cli_sock, request, db_handler, id, addr, lock
+                        )  # (code, email)
+                    case "LOGN":
+                        Server.handle_login(cli_sock, request, db_handler, id, addr, lock)
+                    case "VERC":
+                        result2 = Server.send_code(
+                            cli_sock, request, id, addr, db_handler, lock
+                        )  # (code, username)
+                    case "CODE":
+                        if result2:
+                            is_code_match2 = Server.handle_code(
+                                cli_sock, request, result2[0], id, addr
+                            )
+                        elif result1:
+                            is_code_match1 = Server.handle_code(
+                                cli_sock, request, result1[0], id, addr
+                            )
+                        else:
+                            send_with_size(
+                                cli_sock,
+                                f"|EROR|{Errors.SUBMIT_CODE_BEFORE_GETTING_IT}|".encode(),
+                            )  # trying to submit code before getting the code
+                    case "PWUP":
+                        if is_code_match2:
+                            (is_code_match2, result2) = Server.handle_update_password(
+                                cli_sock, request, result2, id, addr, db_handler, lock
+                            )
+                        else:
+                            send_with_size(
+                                cli_sock,
+                                f"|EROR|{Errors.UPDATE_PASSWORD_BEFORE_PASSING_VERIFICATION}|".encode(),
+                            )  # trying to update password before passing verification
+                    case _:
+                        print(
+                            f"The request from client: {id, addr} is not valid, closing connection..."
+                        )
+                        send_with_size(
+                            cli_sock, f"|EROR|{Errors.INVALID_REQUEST}|".encode()
+                        )  # request is not valid
+        except Exception as e:
+            print(
+                f"Error while trying to register the new user of client: {id, addr}, {e}"
+            )
+            send_with_size(
+                cli_sock, f"|EROR|{Errors.SERVER_ERROR}|".encode()
+            )  # server had problems while dealing with the request
 
     @staticmethod
     def handle_register(cli_sock, request, user_data, db_handler, id, addr, lock):

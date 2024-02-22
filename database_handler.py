@@ -1,6 +1,7 @@
 import sqlite3
 from hashlib import sha256
 
+
 class DataBaseHandler:
     def __init__(self, db_name="user.db") -> None:
         self.conn = sqlite3.connect(db_name)
@@ -8,10 +9,12 @@ class DataBaseHandler:
         self.create_table()
 
     def create_table(self):
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+        self.cursor.execute(
+            """CREATE TABLE IF NOT EXISTS users (
                                 username TEXT UNIQUE NOT NULL PRIMARY KEY,
                                 email TEXT UNIQUE NOT NULL,
-                                password TEXT NOT NULL)''')
+                                password TEXT NOT NULL)"""
+        )
         self.conn.commit()
 
     def is_username_exist(self, username):
@@ -21,21 +24,21 @@ class DataBaseHandler:
     def is_email_exist(self, email):
         self.cursor.execute("SELECT * FROM users WHERE email=?", (email,))
         return self.cursor.fetchone() is not None
-    
+
     def get_email(self, username):
         if not self.is_username_exist(username):
             return None
         self.cursor.execute("SELECT email FROM users WHERE username=?", (username,))
         email = self.cursor.fetchone()[0]
         return email
-    
+
     def get_username(self, email) -> str:
         if not self.is_email_exist(email):
             return None
         self.cursor.execute("SELECT username FROM users WHERE email=?", (email,))
         username = self.cursor.fetchone()[0]
         return username
-    
+
     def is_password_ok(self, username, password):
         self.cursor.execute("SELECT password FROM users WHERE username=?", (username,))
         stored_password = self.cursor.fetchone()[0]
