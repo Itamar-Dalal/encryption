@@ -1,8 +1,10 @@
 import sqlite3
 from hashlib import sha256
-
+from secrets import token_bytes
 
 class DataBaseHandler:
+    SALT_LENGTH = 8
+
     def __init__(self, db_name="user.db") -> None:
         self.conn = sqlite3.connect(db_name)
         self.cursor = self.conn.cursor()
@@ -13,7 +15,8 @@ class DataBaseHandler:
             """CREATE TABLE IF NOT EXISTS users (
                                 username TEXT UNIQUE NOT NULL PRIMARY KEY,
                                 email TEXT UNIQUE NOT NULL,
-                                password TEXT NOT NULL)"""
+                                password TEXT NOT NULL,
+                                salt TEXT NOT NULL)"""
         )
         self.conn.commit()
 
@@ -42,21 +45,26 @@ class DataBaseHandler:
     def is_password_ok(self, username, password):
         self.cursor.execute("SELECT password FROM users WHERE username=?", (username,))
         stored_password = self.cursor.fetchone()[0]
+        self.cursor.execute("SELECT salt FROM users WHERE username=?", (username,))
+        stored_salt = self.cursor.fetchone()[0]
         if stored_password:
-            hashed_password = sha256(password.encode()).hexdigest()
+            hashed_password = sha256(password.encode() + stored_salt).hexdigest()
             return hashed_password == stored_password
         return False
 
     def save_user(self, username, email, password) -> None:
-        hashed_password = sha256(password.encode()).hexdigest()
+        salt = token_bytes(DataBaseHandler.SALT_LENGTH)
+        hashed_password = sha256(password.encode() + salt).hexdigest()
         self.cursor.execute(
-            "INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
-            (username, email, hashed_password),
+            "INSERT INTO users (username, email, password, salt) VALUES (?, ?, ?, ?)",
+            (username, email, hashed_password, salt),
         )
         self.conn.commit()
 
     def update_user_password(self, username, new_password) -> None:
-        hashed_password = sha256(new_password.encode()).hexdigest()
+        self.cursor.execute("SELECT salt FROM users WHERE username=?", (username,))
+        stored_salt = self.cursor.fetchone()[0]
+        hashed_password = sha256(new_password.encode() + stored_salt).hexdigest()
         self.cursor.execute(
             "UPDATE users SET password=? WHERE username=?", (hashed_password, username)
         )

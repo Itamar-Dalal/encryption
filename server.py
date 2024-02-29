@@ -10,7 +10,10 @@ from random import randrange
 from re import match
 from error_codes import Errors
 
-
+'''
+task 2: add salt and paper
+task 3: add the code to the database (or another new database) with 5 minutes timeout
+'''
 IP: str = "0.0.0.0"
 PORT: int = 1234
 
