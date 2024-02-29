@@ -4,6 +4,7 @@ from secrets import token_bytes
 
 class DataBaseHandler:
     SALT_LENGTH = 8
+    PEPPER = b'my_secret_pepper'
 
     def __init__(self, db_name="user.db") -> None:
         self.conn = sqlite3.connect(db_name)
@@ -43,18 +44,17 @@ class DataBaseHandler:
         return username
 
     def is_password_ok(self, username, password):
-        self.cursor.execute("SELECT password FROM users WHERE username=?", (username,))
-        stored_password = self.cursor.fetchone()[0]
-        self.cursor.execute("SELECT salt FROM users WHERE username=?", (username,))
-        stored_salt = self.cursor.fetchone()[0]
+        self.cursor.execute("SELECT password, salt FROM users WHERE username=?", (username,))
+        stored_password, stored_salt = self.cursor.fetchone()
+
         if stored_password:
-            hashed_password = sha256(password.encode() + stored_salt).hexdigest()
+            hashed_password = sha256(password.encode() + stored_salt + DataBaseHandler.PEPPER).hexdigest()
             return hashed_password == stored_password
         return False
 
     def save_user(self, username, email, password) -> None:
         salt = token_bytes(DataBaseHandler.SALT_LENGTH)
-        hashed_password = sha256(password.encode() + salt).hexdigest()
+        hashed_password = sha256(password.encode() + salt + DataBaseHandler.PEPPER).hexdigest()
         self.cursor.execute(
             "INSERT INTO users (username, email, password, salt) VALUES (?, ?, ?, ?)",
             (username, email, hashed_password, salt),
@@ -64,12 +64,11 @@ class DataBaseHandler:
     def update_user_password(self, username, new_password) -> None:
         self.cursor.execute("SELECT salt FROM users WHERE username=?", (username,))
         stored_salt = self.cursor.fetchone()[0]
-        hashed_password = sha256(new_password.encode() + stored_salt).hexdigest()
+        hashed_password = sha256(new_password.encode() + stored_salt + DataBaseHandler.PEPPER).hexdigest()
         self.cursor.execute(
             "UPDATE users SET password=? WHERE username=?", (hashed_password, username)
         )
         self.conn.commit()
-
 
 if __name__ == "__main__":
     # example usage:
