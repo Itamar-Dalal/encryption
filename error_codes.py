@@ -16,3 +16,4 @@ class Errors(StrEnum):
     USERNAME_NOT_EXIST: str = "12"
     INCORRECT_PASSWORD: str = "13"
     REGISTER_BEFORE_PASSING_EMAIL_VERIFICATION: str = "14"
+    CODE_EXPIRED: str = "15"

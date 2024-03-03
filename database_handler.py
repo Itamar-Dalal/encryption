@@ -2,7 +2,6 @@ import sqlite3
 from hashlib import sha256
 from secrets import token_bytes
 from time import time
-from random import randrange
 
 class DataBaseHandler:
     SALT_LENGTH = 8
@@ -71,6 +70,11 @@ class DataBaseHandler:
             "UPDATE users SET password=? WHERE username=?", (hashed_password, username)
         )
         self.conn.commit()
+    
+    def delete_user(self, username) -> None:
+        if self.is_username_exist(username):
+            self.cursor.execute("DELETE FROM users WHERE username=?", (username,))
+            self.conn.commit()
 
 
 class EmailCodeDBHandler:
@@ -84,7 +88,6 @@ class EmailCodeDBHandler:
         self.cursor.execute(
             """CREATE TABLE IF NOT EXISTS emails (
                                 email TEXT UNIQUE NOT NULL PRIMARY KEY,
-                                code TEXT NOT NULL,
                                 timeout FLOAT NOT NULL)"""
         )
         self.conn.commit()
@@ -102,10 +105,9 @@ class EmailCodeDBHandler:
     
     def save_email(self, email) -> None:
         if not self.is_email_exist(email):
-            code = str(randrange(100000, 1000000))  # 6 digit code
             self.cursor.execute(
-                "INSERT INTO emails (email, code, timeout) VALUES (?, ?, ?)",
-                (email, code, time() + EmailCodeDBHandler.TIMEOUT),
+                "INSERT INTO emails (email, timeout) VALUES (?, ?)",
+                (email, time() + EmailCodeDBHandler.TIMEOUT),
             )
             self.conn.commit()
     
@@ -113,19 +115,12 @@ class EmailCodeDBHandler:
         if self.is_email_exist(email):
             self.cursor.execute("DELETE FROM emails WHERE email=?", (email,))
             self.conn.commit()
-    
-    def get_code(self, email) -> str:
-        if self.is_email_exist(email):
-            self.cursor.execute("SELECT code FROM emails WHERE email=?", (email,))
-            self.conn.commit()
-            return self.cursor.fetchone()[0]
-        return None
 
 
 if __name__ == "__main__":
     # example usage:
     db_test = DataBaseHandler()
-    if not db_test.is_username_exist("user1"):
+    '''if not db_test.is_username_exist("user1"):
         db_test.save_user("user1", "user1@example.com", "password123")
     print(db_test.is_username_exist("user1"))
     print(db_test.is_password_ok("user1", "password123"))
@@ -137,4 +132,9 @@ if __name__ == "__main__":
     print(db_test.is_username_exist("itamar"))
     print(db_test.is_email_exist("dalalitamar@gmail.com"))
     print(db_test.get_email("itamar"))
-    print(db_test.is_password_ok("itamar", "dllilo05"))
+    print(db_test.is_password_ok("itamar", "dllilo05"))'''
+    db_test.delete_user("itamar")
+    email_db_test = EmailCodeDBHandler()
+    email_db_test.save_email("dalalitamar@gmail.com")
+    #print(email_db_test.is_timeout_passed("dalalitamar@gmail.com"))
+    #email_db_test.delete_email("dalalitamar@gmail.com")

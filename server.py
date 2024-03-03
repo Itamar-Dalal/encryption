@@ -2,7 +2,7 @@ from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
 from threading import Thread, Lock
 from tcp_by_size import send_with_size, recv_by_size
 from sys import argv
-from database_handler import DataBaseHandler
+from database_handler import DataBaseHandler, EmailCodeDBHandler
 import smtplib, ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -10,10 +10,10 @@ from random import randrange
 from re import match
 from error_codes import Errors
 
-'''
+"""
 task 2: add salt and paper
 task 3: add the code to the database (or another new database) with 5 minutes timeout
-'''
+"""
 IP: str = "0.0.0.0"
 PORT: int = 1234
 
@@ -41,6 +41,7 @@ class Server:
             is_code_match1 = False
             is_code_match2 = False
             db_handler = DataBaseHandler()
+            email_db_handler = EmailCodeDBHandler()
             while True:
                 request = recv_by_size(cli_sock)
                 if not request:
@@ -64,22 +65,48 @@ class Server:
                             )  # trying to register before passing email verification
                     case "REGC":
                         result1 = Server.send_code(
-                            cli_sock, request, db_handler, id, addr, lock
+                            cli_sock,
+                            request,
+                            db_handler,
+                            id,
+                            addr,
+                            lock,
+                            email_db_handler,
                         )  # (code, email)
                     case "LOGN":
-                        Server.handle_login(cli_sock, request, db_handler, id, addr, lock)
+                        Server.handle_login(
+                            cli_sock, request, db_handler, id, addr, lock
+                        )
                     case "VERC":
                         result2 = Server.send_code(
-                            cli_sock, request, id, addr, db_handler, lock
+                            cli_sock,
+                            request,
+                            id,
+                            addr,
+                            db_handler,
+                            lock,
+                            email_db_handler,
                         )  # (code, username)
                     case "CODE":
                         if result2:
                             is_code_match2 = Server.handle_code(
-                                cli_sock, request, result2[0], id, addr
+                                cli_sock,
+                                request,
+                                result2[0],
+                                id,
+                                addr,
+                                email_db_handler,
+                                lock,
                             )
                         elif result1:
                             is_code_match1 = Server.handle_code(
-                                cli_sock, request, result1[0], id, addr
+                                cli_sock,
+                                request,
+                                result1[0],
+                                id,
+                                addr,
+                                email_db_handler,
+                                lock,
                             )
                         else:
                             send_with_size(
@@ -204,7 +231,7 @@ class Server:
             )  # server had problems while dealing with the request
 
     @staticmethod
-    def send_code(cli_sock, request, id, addr, db_handler, lock):
+    def send_code(cli_sock, request, id, addr, db_handler, lock, email_db_handler):
         try:
             opcode = request.split("|")[1]
             receiver_email = request.split("|")[2]
@@ -221,7 +248,7 @@ class Server:
             message = MIMEMultipart("alternative")
             message["From"] = Server.HOST_EMAIL
             message["To"] = receiver_email
-            code = str(randrange(100000, 1000000))  # 6 digit code
+            code = str(randrange(100000, 1000000))  # 6 digits code
             if opcode == "VERC":
                 username = Server.database_action(
                     lock, db_handler.get_username, receiver_email
@@ -251,6 +278,9 @@ class Server:
             print(
                 f"Email was sent successfully from {Server.HOST_EMAIL} to {receiver_email}"
             )
+            if Server.database_action(lock, email_db_handler.is_email_exist, receiver_email):
+                Server.database_action(lock, email_db_handler.delete_email, receiver_email)
+            Server.database_action(lock, email_db_handler.save_email, receiver_email)
             send_with_size(cli_sock, f"|SNTC|".encode())
             return (code, username) if opcode == "VERC" else (code, receiver_email)
         except Exception as e:
@@ -261,9 +291,26 @@ class Server:
             return None
 
     @staticmethod
-    def handle_code(cli_sock, request, code, id, addr) -> bool:
+    def handle_code(cli_sock, request, code, id, addr, email_db_handler, lock) -> bool:
         try:
+            email: str = request.split("|")[3]
+            if not Server.database_action(lock, email_db_handler.is_email_exist, email):
+                print(
+                    f"The email ({email}) received by client: {id, addr} does not appear in the emails table"
+                )
+                send_with_size(
+                    cli_sock, f"|EROR|{Errors.EMAIL_NOT_EXIST}|".encode()
+                )  # email received does not appear in the emails table
+                return False
+            if Server.database_action(lock, email_db_handler.is_timeout_passed, email):
+                print(f"The code sent to client: {id, addr} has expired")
+                send_with_size(
+                    cli_sock, f"|EROR|{Errors.CODE_EXPIRED}|".encode()
+                )  # The code has expired
+                Server.database_action(lock, email_db_handler.delete_email, email)
+                return False
             client_code: str = request.split("|")[2]
+            print(code, client_code)
             if len(client_code) != 6 or not client_code.isnumeric():
                 print(f"The code received from the client is not valid")
                 send_with_size(
@@ -272,11 +319,12 @@ class Server:
                 return False
             if code == client_code:
                 send_with_size(cli_sock, f"|CDEK|".encode())
+                Server.database_action(lock, email_db_handler.delete_email, email)
                 return True
             send_with_size(cli_sock, f"|CDEW|".encode())
             return False
         except Exception as e:
-            print(f"Error while sending the email to client: {id, addr}, {e}")
+            print(f"Error while verifying the code of client: {id, addr}, {e}")
             send_with_size(
                 cli_sock, f"|EROR|{Errors.SERVER_ERROR}|".encode()
             )  # server had problems while dealing with the request

@@ -121,7 +121,7 @@ class Client:
             register_button = tk.Button(
                 self.register_window,
                 text="Register",
-                command=self.verify_email,
+                command=self.register,
                 **self.button_style,
             )
             register_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
@@ -436,6 +436,14 @@ class Client:
             login_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
         except Exception as e:
             print(f"Error: {e}")
+    
+    def register(self):
+        '''Function that made to fix bugs'''
+        self.username = self.register_entries[0].get()
+        self.email = self.register_entries[1].get()
+        self.password = self.register_entries[2].get()
+        self.verify_password = self.register_entries[3].get()
+        self.verify_email()
 
     def verify_email(self):
         try:
@@ -487,8 +495,8 @@ class Client:
                     "The entered code isn't 6 digits, or it's not a number"
                 )
                 return
-            keys = ["Code"]
-            values = [code]
+            keys = ["Code", "Email"]
+            values = [code, self.email]
             self.send_data(3, dict(zip(keys, values)))
             response = recv_by_size(self.cli_sock).split("|")
             match response[1]:
@@ -501,6 +509,18 @@ class Client:
                         case Errors.INVALID_CODE:
                             self.init_register_code(
                                 "The entered code isn't 6 digits, or it's not a number"
+                            )
+                        case Errors.EMAIL_NOT_EXIST:
+                            self.init_register(
+                                "The email does not apper in the server's database"
+                            )
+                        case Errors.CODE_EXPIRED:
+                            self.init_register(
+                                "The code has expired"
+                            )
+                        case Errors.SERVER_ERROR:
+                            self.init_register_code(
+                                "The server had problems while dealing with the request"
                             )
                         case Errors.INVALID_REQUEST:
                             self.init_register_code(
@@ -630,8 +650,8 @@ class Client:
                     "The entered code isn't 6 digits, or it's not a number"
                 )
                 return
-            keys = ["Code"]
-            values = [code]
+            keys = ["Code", "Email"]
+            values = [code, self.forgot_password_email]
             self.send_data(3, dict(zip(keys, values)))
             response = recv_by_size(self.cli_sock).split("|")
             match response[1]:
@@ -644,6 +664,14 @@ class Client:
                         case Errors.INVALID_CODE:
                             self.init_password_code(
                                 "The entered code isn't 6 digits, or it's not a number"
+                            )
+                        case Errors.EMAIL_NOT_EXIST:
+                            self.init_forgot_password(
+                                "The email does not apper in the server's database"
+                            )
+                        case Errors.CODE_EXPIRED:
+                            self.init_forgot_password(
+                                "The code has expired"
                             )
                         case Errors.SERVER_ERROR:
                             self.init_password_code(
@@ -710,7 +738,7 @@ class Client:
                 case 2:
                     msg = f"|VERC|{user_data['Email Address']}|"
                 case 3:
-                    msg = f"|CODE|{user_data['Code']}|"
+                    msg = f"|CODE|{user_data['Code']}|{user_data['Email']}|"
                 case 4:
                     msg = f"|PWUP|{user_data['Password']}|"
                 case 5:
