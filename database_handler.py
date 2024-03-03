@@ -3,9 +3,10 @@ from hashlib import sha256
 from secrets import token_bytes
 from time import time
 
+
 class DataBaseHandler:
     SALT_LENGTH = 8
-    PEPPER = b'my_secret_pepper'
+    PEPPER = b"my_secret_pepper"
 
     def __init__(self, db_name="user.db") -> None:
         self.conn = sqlite3.connect(db_name)
@@ -45,17 +46,23 @@ class DataBaseHandler:
         return username
 
     def is_password_ok(self, username, password):
-        self.cursor.execute("SELECT password, salt FROM users WHERE username=?", (username,))
+        self.cursor.execute(
+            "SELECT password, salt FROM users WHERE username=?", (username,)
+        )
         stored_password, stored_salt = self.cursor.fetchone()
 
         if stored_password:
-            hashed_password = sha256(password.encode() + stored_salt + DataBaseHandler.PEPPER).hexdigest()
+            hashed_password = sha256(
+                password.encode() + stored_salt + DataBaseHandler.PEPPER
+            ).hexdigest()
             return hashed_password == stored_password
         return False
 
     def save_user(self, username, email, password) -> None:
         salt = token_bytes(DataBaseHandler.SALT_LENGTH)
-        hashed_password = sha256(password.encode() + salt + DataBaseHandler.PEPPER).hexdigest()
+        hashed_password = sha256(
+            password.encode() + salt + DataBaseHandler.PEPPER
+        ).hexdigest()
         self.cursor.execute(
             "INSERT INTO users (username, email, password, salt) VALUES (?, ?, ?, ?)",
             (username, email, hashed_password, salt),
@@ -65,12 +72,14 @@ class DataBaseHandler:
     def update_user_password(self, username, new_password) -> None:
         self.cursor.execute("SELECT salt FROM users WHERE username=?", (username,))
         stored_salt = self.cursor.fetchone()[0]
-        hashed_password = sha256(new_password.encode() + stored_salt + DataBaseHandler.PEPPER).hexdigest()
+        hashed_password = sha256(
+            new_password.encode() + stored_salt + DataBaseHandler.PEPPER
+        ).hexdigest()
         self.cursor.execute(
             "UPDATE users SET password=? WHERE username=?", (hashed_password, username)
         )
         self.conn.commit()
-    
+
     def delete_user(self, username) -> None:
         if self.is_username_exist(username):
             self.cursor.execute("DELETE FROM users WHERE username=?", (username,))
@@ -78,7 +87,8 @@ class DataBaseHandler:
 
 
 class EmailCodeDBHandler:
-    TIMEOUT = 300 # 5 minutes
+    TIMEOUT = 300  # 5 minutes
+
     def __init__(self, db_name="user.db") -> None:
         self.conn = sqlite3.connect(db_name)
         self.cursor = self.conn.cursor()
@@ -95,14 +105,14 @@ class EmailCodeDBHandler:
     def is_email_exist(self, email) -> bool:
         self.cursor.execute("SELECT * FROM emails WHERE email=?", (email,))
         return self.cursor.fetchone() is not None
-    
+
     def is_timeout_passed(self, email) -> bool:
         if not self.is_email_exist(email):
             return True
         self.cursor.execute("SELECT timeout FROM emails WHERE email=?", (email,))
         timeout = self.cursor.fetchone()[0]
         return time() > timeout
-    
+
     def save_email(self, email) -> None:
         if not self.is_email_exist(email):
             self.cursor.execute(
@@ -110,7 +120,7 @@ class EmailCodeDBHandler:
                 (email, time() + EmailCodeDBHandler.TIMEOUT),
             )
             self.conn.commit()
-    
+
     def delete_email(self, email) -> None:
         if self.is_email_exist(email):
             self.cursor.execute("DELETE FROM emails WHERE email=?", (email,))
@@ -120,7 +130,7 @@ class EmailCodeDBHandler:
 if __name__ == "__main__":
     # example usage:
     db_test = DataBaseHandler()
-    '''if not db_test.is_username_exist("user1"):
+    """if not db_test.is_username_exist("user1"):
         db_test.save_user("user1", "user1@example.com", "password123")
     print(db_test.is_username_exist("user1"))
     print(db_test.is_password_ok("user1", "password123"))
@@ -132,9 +142,9 @@ if __name__ == "__main__":
     print(db_test.is_username_exist("itamar"))
     print(db_test.is_email_exist("dalalitamar@gmail.com"))
     print(db_test.get_email("itamar"))
-    print(db_test.is_password_ok("itamar", "dllilo05"))'''
+    print(db_test.is_password_ok("itamar", "dllilo05"))"""
     db_test.delete_user("itamar")
     email_db_test = EmailCodeDBHandler()
     email_db_test.save_email("dalalitamar@gmail.com")
-    #print(email_db_test.is_timeout_passed("dalalitamar@gmail.com"))
-    #email_db_test.delete_email("dalalitamar@gmail.com")
+    # print(email_db_test.is_timeout_passed("dalalitamar@gmail.com"))
+    # email_db_test.delete_email("dalalitamar@gmail.com")

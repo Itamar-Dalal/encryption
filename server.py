@@ -10,19 +10,16 @@ from random import randrange
 from re import match
 from error_codes import Errors
 
-"""
-task 2: add salt and paper
-task 3: add the code to the database (or another new database) with 5 minutes timeout
-"""
 IP: str = "0.0.0.0"
 PORT: int = 1234
 
-
 class Server:
+    """Class implementing a server application for user registration and login."""
     HOST_EMAIL = "dalalcyber@gmail.com"
     HOST_PASSWORD = "cdyu khpz hyhc poqn"
 
     def __init__(self, ip: str, port: int) -> None:
+        """Initialize the server with provided IP and port."""
         try:
             self.threads: list[Thread] = []
             self.srv_sock: socket = socket(AF_INET, SOCK_STREAM)
@@ -35,6 +32,7 @@ class Server:
 
     @staticmethod
     def handle_client(cli_sock, id, addr, lock) -> None:
+        """Handle individual client connections."""
         try:
             result1 = None
             result2 = None
@@ -140,6 +138,7 @@ class Server:
 
     @staticmethod
     def handle_register(cli_sock, request, user_data, db_handler, id, addr, lock):
+        """Handle user registration."""
         try:
             request = request.split("|")
             username = request[2]
@@ -196,8 +195,11 @@ class Server:
                 cli_sock, f"|EROR|{Errors.SERVER_ERROR}|".encode()
             )  # server had problems while dealing with the request
 
+   
+
     @staticmethod
     def handle_login(cli_sock, request, db_handler, id, addr, lock):
+        """Handle user login."""
         try:
             request = request.split("|")
             username = request[2]
@@ -232,6 +234,7 @@ class Server:
 
     @staticmethod
     def send_code(cli_sock, request, id, addr, db_handler, lock, email_db_handler):
+        """Send verification code to the provided email."""
         try:
             opcode = request.split("|")[1]
             receiver_email = request.split("|")[2]
@@ -278,8 +281,12 @@ class Server:
             print(
                 f"Email was sent successfully from {Server.HOST_EMAIL} to {receiver_email}"
             )
-            if Server.database_action(lock, email_db_handler.is_email_exist, receiver_email):
-                Server.database_action(lock, email_db_handler.delete_email, receiver_email)
+            if Server.database_action(
+                lock, email_db_handler.is_email_exist, receiver_email
+            ):
+                Server.database_action(
+                    lock, email_db_handler.delete_email, receiver_email
+                )
             Server.database_action(lock, email_db_handler.save_email, receiver_email)
             send_with_size(cli_sock, f"|SNTC|".encode())
             return (code, username) if opcode == "VERC" else (code, receiver_email)
@@ -292,6 +299,7 @@ class Server:
 
     @staticmethod
     def handle_code(cli_sock, request, code, id, addr, email_db_handler, lock) -> bool:
+        """Handle verification code sent by the client."""
         try:
             email: str = request.split("|")[3]
             if not Server.database_action(lock, email_db_handler.is_email_exist, email):
@@ -334,6 +342,7 @@ class Server:
     def handle_update_password(
         cli_sock, request, user_data, id, addr, db_handler, lock
     ) -> tuple[bool, (str, str)]:
+        """Handle updating user password."""
         _, username = user_data
         password = request.split("|")[2]
         if password:
@@ -344,7 +353,9 @@ class Server:
                 send_with_size(cli_sock, f"|PWUK|".encode())
             except Exception as e:
                 print(
-                    f"Error while updating the password of client: {id, addr}, user: {username}, to password: {password}"
+                    f"Error while updating the password of client: {id, addr}, user: {username}, to password: {password
+
+}"
                 )
                 print(f"Error: {e}")
                 send_with_size(
@@ -372,11 +383,7 @@ class Server:
             return func(*args, **kwargs)
 
     def run(self) -> None:
-        """Run the server application.
-
-        Returns:
-            None
-        """
+        """Run the server application."""
         i = 1
         try:
             print("\nMain thread: starting to accept...")

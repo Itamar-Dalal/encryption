@@ -12,6 +12,15 @@ PORT = 1234
 
 
 def close_window(func):
+    """
+    A decorator function to handle closing windows.
+
+    Args:
+        func (function): The function to be wrapped.
+
+    Returns:
+        function: The wrapped function.
+    """
     try:
         def wrapper(self, *args, **kwargs):
             if self.running_window:
@@ -25,7 +34,32 @@ def close_window(func):
 
 
 class Client:
+    """
+    A class representing a client for a user login system.
+
+    Attributes:
+        width (int): The width of the GUI windows.
+        height (int): The height of the GUI windows.
+        ip (str): The IP address of the server.
+        port (int): The port number of the server.
+        cli_sock (socket): The client socket for communication.
+        running_window (tk.Tk): The currently running window.
+        username (str): The username of the user.
+        password (str): The password of the user.
+        verify_password (str): The verification of the password.
+        email (str): The email address of the user.
+        forgot_password_email (str): The email address for forgotten password recovery.
+    """
     def __init__(self, ip, port, width=350, height=250):
+        """
+        Initializes the Client class.
+
+        Args:
+            ip (str): The IP address of the server.
+            port (int): The port number of the server.
+            width (int, optional): The width of the GUI windows. Defaults to 350.
+            height (int, optional): The height of the GUI windows. Defaults to 250.
+        """
         try:
             self.width = width
             self.height = height
@@ -43,6 +77,11 @@ class Client:
 
     @close_window
     def init_home(self):
+        """
+        Initializes the home window.
+
+        This function sets up the home window with options to either register or login.
+        """
         try:
             self.home_window = tk.Tk()
             self.running_window = self.home_window
@@ -86,6 +125,14 @@ class Client:
 
     @close_window
     def init_register(self, err=None):
+        """
+        Initializes the register window.
+
+        This function sets up the register window with fields for username, email, password, and verification of password.
+
+        Args:
+            err (str, optional): Error message to display, if any. Defaults to None.
+        """
         try:
             if err:
                 messagebox.showerror("Register Error", err)
@@ -137,6 +184,14 @@ class Client:
 
     @close_window
     def init_login(self, err=None):
+        """
+        Initializes the login window.
+
+        This function sets up the login window with fields for username and password.
+
+        Args:
+            err (str, optional): Error message to display, if any. Defaults to None.
+        """
         try:
             if err:
                 messagebox.showerror("Login Error", err)
@@ -193,9 +248,16 @@ class Client:
         except Exception as e:
             print(f"Error: {e}")
 
-
     @close_window
     def init_forgot_password(self, err=None):
+        """
+        Initializes the forgot password window.
+
+        This function sets up the forgot password window with field for email address.
+
+        Args:
+            err (str, optional): Error message to display, if any. Defaults to None.
+        """
         try:
             if err:
                 messagebox.showerror("Forgot Password Error", err)
@@ -240,9 +302,16 @@ class Client:
         except Exception as e:
             print(f"Error: {e}")
 
-
     @close_window
     def init_password_code(self, err=None):
+        """
+        Initializes the password code window.
+
+        This function sets up the password code window with field for entering code.
+
+        Args:
+            err (str, optional): Error message to display, if any. Defaults to None.
+        """
         try:
             if err:
                 messagebox.showerror("Password Code Error", err)
@@ -294,9 +363,16 @@ class Client:
         except Exception as e:
             print(f"Error: {e}")
 
-
     @close_window
     def init_register_code(self, err=None):
+        """
+        Initializes the register code window.
+
+        This function sets up the register code window with field for entering code.
+
+        Args:
+            err (str, optional): Error message to display, if any. Defaults to None.
+        """
         try:
             if err:
                 messagebox.showerror("Register Code Error", err)
@@ -350,6 +426,14 @@ class Client:
 
     @close_window
     def init_update_password(self, err=None):
+        """
+        Initializes the update password window.
+
+        This function sets up the update password window with field for entering new password.
+
+        Args:
+            err (str, optional): Error message to display, if any. Defaults to None.
+        """
         try:
             if err:
                 messagebox.showerror("Update Password Error", err)
@@ -393,10 +477,18 @@ class Client:
             login_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
         except Exception as e:
             print(f"Error: {e}")
-        
 
     @close_window
     def init_user_home(self, username, email):
+        """
+        Initializes the user home window.
+
+        This function sets up the user home window with user information.
+
+        Args:
+            username (str): The username of the user.
+            email (str): The email address of the user.
+        """
         try:
             self.user_home_window = tk.Tk()
             self.running_window = self.user_home_window
@@ -446,6 +538,7 @@ class Client:
         self.verify_email()
 
     def verify_email(self):
+        '''Request from the server to send verification code for the entered email address.'''
         try:
             if not self.username and not self.email and not self.password and not self.verify_password:
                 self.username = self.register_entries[0].get()
@@ -488,6 +581,7 @@ class Client:
             print(f"Error: {e}")
 
     def register_code(self):
+        '''Handle the registration verification code.'''
         try:
             code = self.register_code_entry.get()
             if len(code) != 6 or not code.isnumeric():
@@ -534,6 +628,7 @@ class Client:
             print(f"Error: {e}")
 
     def register_user(self):
+        '''Register a new user.'''
         try:
             keys = ["Username", "Email Address", "Password"]
             values = [self.username, self.email, self.password]
@@ -571,6 +666,7 @@ class Client:
             print(f"Error: {e}")
 
     def login_user(self):
+        '''Login an existing user.'''
         try:
             username = self.login_entries[0].get()
             password = self.login_entries[1].get()
@@ -608,6 +704,7 @@ class Client:
             print(f"Error: {e}")
 
     def forgot_password(self):
+        '''Initiate the process for password recovery.'''
         try:
             if not self.forgot_password_email:
                 self.forgot_password_email = self.email_entry.get()
@@ -643,6 +740,7 @@ class Client:
             print(f"Error: {e}")
 
     def password_code(self):
+        '''Handle the password recovery verification code.'''
         try:
             code = self.password_code_entry.get()
             if len(code) != 6 or not code.isnumeric():
@@ -689,6 +787,7 @@ class Client:
             print(f"Error: {e}")
 
     def update_password(self):
+        '''Update the user's password.'''
         try:
             password = self.password_entry.get()
             if password == "":
@@ -724,11 +823,8 @@ class Client:
         except Exception as e:
             print(f"Error: {e}")
 
-    def send_data(
-        self, request_type: int, user_data: dict
-    ) -> (
-        None
-    ):  # request_type: 0 - register, 1 - login, 2 - forgot password, 3 - password code, 4 - update password
+    def send_data(self, request_type: int, user_data: dict) -> None:
+        '''Send data to the server based on request type and user data.'''
         try:
             match request_type:
                 case 0:
@@ -748,6 +844,7 @@ class Client:
             print(f"Error: {e}")
 
     def invalid_response(self):
+        '''Handle invalid responses from the server.'''
         try:
             print(f"The response sent from the server is not valid, closing connection...")
             self.cli_sock.close()
@@ -757,6 +854,7 @@ class Client:
 
     def run(self) -> None:
         """Run the client application.
+
         Returns:
             None
         """
