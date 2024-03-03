@@ -1,6 +1,8 @@
 import sqlite3
 from hashlib import sha256
 from secrets import token_bytes
+from time import time
+from random import randrange
 
 class DataBaseHandler:
     SALT_LENGTH = 8
@@ -69,6 +71,56 @@ class DataBaseHandler:
             "UPDATE users SET password=? WHERE username=?", (hashed_password, username)
         )
         self.conn.commit()
+
+
+class EmailCodeDBHandler:
+    TIMEOUT = 300 # 5 minutes
+    def __init__(self, db_name="user.db") -> None:
+        self.conn = sqlite3.connect(db_name)
+        self.cursor = self.conn.cursor()
+        self.create_table()
+
+    def create_table(self):
+        self.cursor.execute(
+            """CREATE TABLE IF NOT EXISTS emails (
+                                email TEXT UNIQUE NOT NULL PRIMARY KEY,
+                                code TEXT NOT NULL,
+                                timeout FLOAT NOT NULL)"""
+        )
+        self.conn.commit()
+
+    def is_email_exist(self, email) -> bool:
+        self.cursor.execute("SELECT * FROM emails WHERE email=?", (email,))
+        return self.cursor.fetchone() is not None
+    
+    def is_timeout_passed(self, email) -> bool:
+        if not self.is_email_exist(email):
+            return True
+        self.cursor.execute("SELECT timeout FROM emails WHERE email=?", (email,))
+        timeout = self.cursor.fetchone()[0]
+        return time() > timeout
+    
+    def save_email(self, email) -> None:
+        if not self.is_email_exist(email):
+            code = str(randrange(100000, 1000000))  # 6 digit code
+            self.cursor.execute(
+                "INSERT INTO emails (email, code, timeout) VALUES (?, ?, ?)",
+                (email, code, time() + EmailCodeDBHandler.TIMEOUT),
+            )
+            self.conn.commit()
+    
+    def delete_email(self, email) -> None:
+        if self.is_email_exist(email):
+            self.cursor.execute("DELETE FROM emails WHERE email=?", (email,))
+            self.conn.commit()
+    
+    def get_code(self, email) -> str:
+        if self.is_email_exist(email):
+            self.cursor.execute("SELECT code FROM emails WHERE email=?", (email,))
+            self.conn.commit()
+            return self.cursor.fetchone()[0]
+        return None
+
 
 if __name__ == "__main__":
     # example usage:
