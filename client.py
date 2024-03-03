@@ -538,7 +538,7 @@ class Client:
         self.verify_email()
 
     def verify_email(self):
-        '''Request from the server to send verification code for the entered email address.'''
+        '''Ask for the server to send verification code for the entered email address.'''
         try:
             if not self.username and not self.email and not self.password and not self.verify_password:
                 self.username = self.register_entries[0].get()
@@ -628,7 +628,7 @@ class Client:
             print(f"Error: {e}")
 
     def register_user(self):
-        '''Register a new user.'''
+        '''Ask for the server to register a new user.'''
         try:
             keys = ["Username", "Email Address", "Password"]
             values = [self.username, self.email, self.password]
@@ -666,7 +666,7 @@ class Client:
             print(f"Error: {e}")
 
     def login_user(self):
-        '''Login an existing user.'''
+        '''Ask for the server to login an existing user.'''
         try:
             username = self.login_entries[0].get()
             password = self.login_entries[1].get()
@@ -704,7 +704,7 @@ class Client:
             print(f"Error: {e}")
 
     def forgot_password(self):
-        '''Initiate the process for password recovery.'''
+        '''Ask for the server to send code for password recovery.'''
         try:
             if not self.forgot_password_email:
                 self.forgot_password_email = self.email_entry.get()
@@ -787,7 +787,7 @@ class Client:
             print(f"Error: {e}")
 
     def update_password(self):
-        '''Update the user's password.'''
+        '''Ask for the server to update the user's password.'''
         try:
             password = self.password_entry.get()
             if password == "":
