@@ -5,6 +5,7 @@ from tcp_by_size import send_with_size, recv_by_size
 from sys import argv, exit
 from re import match
 from error_codes import Errors
+from Crypto import Random
 
 
 IP = "127.0.0.1"
@@ -557,7 +558,7 @@ class Client:
             keys = ["Email Address"]
             values = [self.email]
             self.send_data(5, dict(zip(keys, values)))
-            response = recv_by_size(self.cli_sock).split("|")
+            response = recv_by_size(self.cli_sock, key=self.secret_key).split("|")
             match response[1]:
                 case "SNTC":
                     self.init_register_code()
@@ -592,7 +593,7 @@ class Client:
             keys = ["Code", "Email"]
             values = [code, self.email]
             self.send_data(3, dict(zip(keys, values)))
-            response = recv_by_size(self.cli_sock).split("|")
+            response = recv_by_size(self.cli_sock, key=self.secret_key).split("|")
             match response[1]:
                 case "CDEK":
                     self.register_user()
@@ -633,7 +634,7 @@ class Client:
             keys = ["Username", "Email Address", "Password"]
             values = [self.username, self.email, self.password]
             self.send_data(0, dict(zip(keys, values)))
-            response = recv_by_size(self.cli_sock).split("|")
+            response = recv_by_size(self.cli_sock, key=self.secret_key).split("|")
             match response[1]:
                 case "REGK":
                     print(f"The user {self.username} has successfully registered")
@@ -676,7 +677,7 @@ class Client:
             keys = ["Username", "Password"]
             values = [username, password]
             self.send_data(1, dict(zip(keys, values)))
-            response = recv_by_size(self.cli_sock).split("|")
+            response = recv_by_size(self.cli_sock, key=self.secret_key).split("|")
             match response[1]:
                 case "LOGK":
                     username = response[2]
@@ -714,7 +715,7 @@ class Client:
             keys = ["Email Address"]
             values = [self.forgot_password_email]
             self.send_data(2, dict(zip(keys, values)))
-            response = recv_by_size(self.cli_sock).split("|")
+            response = recv_by_size(self.cli_sock, key=self.secret_key).split("|")
             match response[1]:
                 case "SNTC":
                     self.init_password_code()
@@ -751,7 +752,7 @@ class Client:
             keys = ["Code", "Email"]
             values = [code, self.forgot_password_email]
             self.send_data(3, dict(zip(keys, values)))
-            response = recv_by_size(self.cli_sock).split("|")
+            response = recv_by_size(self.cli_sock, key=self.secret_key).split("|")
             match response[1]:
                 case "CDEK":
                     self.init_update_password()
@@ -796,7 +797,7 @@ class Client:
             keys = ["Password"]
             values = [password]
             self.send_data(4, dict(zip(keys, values)))
-            response = recv_by_size(self.cli_sock).split("|")
+            response = recv_by_size(self.cli_sock, key=self.secret_key).split("|")
             match response[1]:
                 case "PWUK":
                     messagebox.showinfo(
@@ -839,7 +840,7 @@ class Client:
                     msg = f"|PWUP|{user_data['Password']}|"
                 case 5:
                     msg = f"|REGC|{user_data['Email Address']}|"
-            send_with_size(self.cli_sock, msg.encode())
+            send_with_size(self.cli_sock, msg.encode(), self.secret_key)
         except Exception as e:
             print(f"Error: {e}")
 
@@ -851,7 +852,7 @@ class Client:
             exit()
         except Exception as e:
             print(f"Error: {e}")
-
+    
     def run(self) -> None:
         """Run the client application.
 
@@ -862,12 +863,23 @@ class Client:
             try:
                 self.cli_sock.connect((self.ip, self.port))
                 print(f"Connected to server {self.ip}:{self.port}")
+                self.secret_key = Random.get_random_bytes(16)
+                self.cli_sock.send(self.secret_key)
+                print(f"send to server secret key: {self.secret_key}")
+                data = recv_by_size(self.cli_sock, key=self.secret_key)
+                opcode = data.split("|")[1]
+                match opcode:
+                    case "KEYK":
+                        print(f"The server has successfully received the key: {self.secret_key}")
+                        self.init_home()
+                    case _:
+                        print(f"Error in the server while handling the sercret key: {self.secret_key}")
             except Exception as e:
+                print(e)
                 print(
                     f"Error while trying to connect. Check IP or port -- {self.ip}:{self.port}"
                 )
                 exit()
-            self.init_home()
             self.cli_sock.close()
         except Exception as e:
             print(f"Error: {e}")

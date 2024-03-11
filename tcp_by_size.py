@@ -1,8 +1,12 @@
 import socket, struct
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
+from Crypto import Random
+import hashlib
+import base64
 
 size_header_size = 8
 TCP_DEBUG = True
-
 
 def __log(prefix, data, max_to_print=100):
     if not TCP_DEBUG:
@@ -27,12 +31,31 @@ def __recv_amount(sock, size=4):
     return buffer
 
 
-def recv_by_size(sock, return_type="string"):
+def encrypt(message, key):
+    cipher = AES.new(key, AES.MODE_CBC)
+    ciphertext = cipher.encrypt(pad(message, AES.block_size))
+    iv = cipher.iv
+    return iv + ciphertext
+
+def decrypt(encrypted_message, key):
+    iv = encrypted_message[:AES.block_size]
+    ciphertext = encrypted_message[AES.block_size:]
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    decrypted = unpad(cipher.decrypt(ciphertext), AES.block_size)
+    return decrypted
+
+
+def recv_by_size(sock, return_type="string", key=None):
     try:
         data = b""
         data_len = int(__recv_amount(sock, size_header_size))
         # code handle the case of data_len 0
-        data = __recv_amount(sock, data_len)
+        if not key:
+            data = __recv_amount(sock, data_len)
+        else:
+            data = __recv_amount(sock, data_len)
+            print(data)
+            data = decrypt(data, key)
         __log("Receive", data)
         if return_type == "string":
             return data.decode()
@@ -41,12 +64,14 @@ def recv_by_size(sock, return_type="string"):
     return data
 
 
-def send_with_size(sock, data):
+def send_with_size(sock, data, key=None):
     if len(data) == 0:
         return
     try:
         if type(data) != bytes:
             data = data.encode()
+        if key:
+            data = encrypt(data, key)
         len_data = str(len(data)).zfill(size_header_size).encode()
         data = len_data + data
         sock.sendall(data)
@@ -101,7 +126,6 @@ def recv_one_message(sock, return_type="string"):
         return None
     (len_int,) = struct.unpack("I", len_section)
     len_int = socket.ntohl(len_int)
-
     data = __recv_amount(sock, len_int)
     if TCP_DEBUG and len(data) != 0:
         print(f"\nRecv({len_int})>>>{data[:100]}")
