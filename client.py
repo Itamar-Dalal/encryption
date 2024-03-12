@@ -13,6 +13,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import dh
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+import random
+import math
 
 IP = "127.0.0.1"
 PORT = 1234
@@ -947,6 +949,54 @@ class Client:
         except Exception as e:
             print(f"Error: {e}")
 
+    @staticmethod
+    def gcd(a, b):
+        while b != 0:
+            a, b = b, a % b
+        return a
+    
+    @staticmethod
+    def is_prime(num):
+        if num <= 1:
+            return False
+        if num == 2 or num == 3:
+            return True
+        if num % 2 == 0:
+            return False
+        for i in range(3, int(math.sqrt(num)) + 1, 2):
+            if num % i == 0:
+                return False
+        return True
+    
+    @staticmethod
+    def generate_prime():
+        while True:
+            num = random.randint(100, 1000)
+            if Client.is_prime(num):
+                return num
+    
+    @staticmethod
+    def generate_primitive_root(prime):
+        while True:
+            primitive_root = random.randint(2, prime - 1)
+            if pow(primitive_root, (prime - 1) // 2, prime) != 1:
+                return primitive_root
+    
+    @staticmethod
+    def generate_private_key(prime):
+        return random.randint(2, prime - 1)
+    
+    @staticmethod
+    def generate_public_key(prime, primitive_root, private_key):
+        return pow(primitive_root, private_key, prime)
+    
+    @staticmethod
+    def generate_shared_secret(public_key, private_key, prime):
+        shared_secret = pow(public_key, private_key, prime)
+        shared_secret_str = str(shared_secret)
+        padded_shared_secret = shared_secret_str.ljust(16, '0')
+        return padded_shared_secret.encode()
+    
     def run(self) -> None:
         """Run the client application.
 
@@ -995,9 +1045,15 @@ class Client:
                         case _:
                             self.invalid_response()
                 elif self.crypto_system == "Diffie-Hellman":
-                    pass
-
-
+                    prime = int(self.cli_sock.recv(1024).decode())
+                    primitive_root = int(self.cli_sock.recv(1024).decode())
+                    public_key = int(self.cli_sock.recv(1024).decode())
+                    private_key = Client.generate_private_key(prime)
+                    client_public_key = Client.generate_public_key(prime, primitive_root, private_key)
+                    self.cli_sock.sendall(str(client_public_key).encode())
+                    self.secret_key = Client.generate_shared_secret(public_key, private_key, prime)
+                    print("Shared secret generated:", self.secret_key)
+                    self.init_home()
             except Exception as e:
                 print(e)
                 print(

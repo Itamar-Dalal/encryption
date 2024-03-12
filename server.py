@@ -87,7 +87,10 @@ class Server:
     
     @staticmethod
     def generate_shared_secret(public_key, private_key, prime):
-        return pow(public_key, private_key, prime)
+        shared_secret = pow(public_key, private_key, prime)
+        shared_secret_str = str(shared_secret)
+        padded_shared_secret = shared_secret_str.ljust(16, '0')
+        return padded_shared_secret.encode()
     
     @staticmethod
     def handle_client(cli_sock, id, addr, lock) -> None:
@@ -106,8 +109,8 @@ class Server:
                     crypto_system = recv_by_size(cli_sock).split("|")[1]
                     if crypto_system in ("RSA", "Diffie-Hellman"):
                         send_with_size(cli_sock, "|CSOK|".encode())
+                        is_crypto_ok = True
                         if crypto_system == "RSA":
-                            is_crypto_ok = True
                             data = recv_by_size(cli_sock)
                             opcode = data.split("|")[1]
                             match opcode:
@@ -141,20 +144,17 @@ class Server:
                                     send_with_size(
                                         cli_sock, f"|EROR|{Errors.INVALID_REQUEST}|".encode(), secret_key
                                     )  # request is not valid
-                        #elif crypto_system == "Diffie-Hellman":
-                        #    prime = Server.generate_prime()
-                        #    primitive_root = Server.generate_primitive_root(prime)
-                        #    private_key = Server.generate_private_key(prime)
-                        #    public_key = Server.generate_public_key(prime, primitive_root, private_key)
-                        #    cli_sock.sendall(str(prime).encode())
-                        #    cli_sock.sendall(str(primitive_root).encode())
-                        #    cli_sock.sendall(str(public_key).encode())
-#
-                        #    client_public_key = int(cli_sock.recv(1024).decode())
-                        #    secret_key = Server.generate_shared_secret(client_public_key, private_key, prime)
-                        #    print("Shared secret generated:", shared_secret)
-
-
+                        elif crypto_system == "Diffie-Hellman":
+                            prime = Server.generate_prime()
+                            primitive_root = Server.generate_primitive_root(prime)
+                            private_key = Server.generate_private_key(prime)
+                            public_key = Server.generate_public_key(prime, primitive_root, private_key)
+                            cli_sock.sendall(str(prime).encode())
+                            cli_sock.sendall(str(primitive_root).encode())
+                            cli_sock.sendall(str(public_key).encode())
+                            client_public_key = int(cli_sock.recv(1024).decode())
+                            secret_key = Server.generate_shared_secret(client_public_key, private_key, prime)
+                            print("Shared secret generated:", secret_key)
                     else:
                         send_with_size(cli_sock, "|CSNK|".encode())
             except Exception as e:
@@ -257,7 +257,7 @@ class Server:
                         )  # request is not valid
         except Exception as e:
             print(
-                f"Error while trying to register the new user of client: {id, addr}, {e}"
+                f"Error while handling client request: {id, addr}, {e}"
             )
             send_with_size(
                 cli_sock, f"|EROR|{Errors.SERVER_ERROR}|".encode(), secret_key
