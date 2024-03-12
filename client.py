@@ -31,11 +31,13 @@ def close_window(func):
         function: The wrapped function.
     """
     try:
+
         def wrapper(self, *args, **kwargs):
             if self.running_window:
                 self.running_window.destroy()
             result = func(self, *args, **kwargs)
             return result
+
         return wrapper
     except Exception as e:
         print(f"Error: {e}")
@@ -58,6 +60,7 @@ class Client:
         email (str): The email address of the user.
         forgot_password_email (str): The email address for forgotten password recovery.
     """
+
     def __init__(self, ip, port, width=350, height=250):
         """
         Initializes the Client class.
@@ -102,7 +105,7 @@ class Client:
         try:
             self.home_window = tk.Tk()
             self.running_window = self.home_window
-            self.home_window.attributes('-topmost',True)
+            self.home_window.attributes("-topmost", True)
             self.home_window.title("Home")
             self.home_window.geometry(f"{self.width}x{self.height}")
             self.home_window.configure(bg="#1E2533")
@@ -148,7 +151,7 @@ class Client:
                 messagebox.showerror("Register Error", err)
             self.register_window = tk.Tk()
             self.running_window = self.register_window
-            self.register_window.attributes('-topmost',True)
+            self.register_window.attributes("-topmost", True)
             self.register_window.title("Register")
             self.register_window.geometry(f"300x480")
             self.register_window.configure(bg="#1E2533")
@@ -171,9 +174,9 @@ class Client:
                 for label in labels
             ]
             for label, entry in zip(labels, self.register_entries):
-                tk.Label(self.register_window, text=label, bg="#1E2533", fg="#E0E6F0").pack(
-                    pady=5
-                )
+                tk.Label(
+                    self.register_window, text=label, bg="#1E2533", fg="#E0E6F0"
+                ).pack(pady=5)
                 entry.pack(pady=5, padx=10, ipadx=10, ipady=5)
             register_button = tk.Button(
                 self.register_window,
@@ -207,7 +210,7 @@ class Client:
                 messagebox.showerror("Login Error", err)
             self.login_window = tk.Tk()
             self.running_window = self.login_window
-            self.login_window.attributes('-topmost',True)
+            self.login_window.attributes("-topmost", True)
             self.login_window.title("Login")
             self.login_window.geometry(f"300x380")
             self.login_window.configure(bg="#1E2533")
@@ -230,9 +233,9 @@ class Client:
                 for label in labels
             ]
             for label, entry in zip(labels, self.login_entries):
-                tk.Label(self.login_window, text=label, bg="#1E2533", fg="#E0E6F0").pack(
-                    pady=5
-                )
+                tk.Label(
+                    self.login_window, text=label, bg="#1E2533", fg="#E0E6F0"
+                ).pack(pady=5)
                 entry.pack(pady=5, padx=10, ipadx=10, ipady=5)
             login_button = tk.Button(
                 self.login_window,
@@ -273,7 +276,7 @@ class Client:
                 messagebox.showerror("Forgot Password Error", err)
             self.forgot_password_window = tk.Tk()
             self.running_window = self.forgot_password_window
-            self.forgot_password_window.attributes('-topmost',True)
+            self.forgot_password_window.attributes("-topmost", True)
             self.forgot_password_window.title("Forgot Password")
             self.forgot_password_window.geometry(f"300x280")
             self.forgot_password_window.configure(bg="#1E2533")
@@ -327,7 +330,7 @@ class Client:
                 messagebox.showerror("Password Code Error", err)
             self.password_code_window = tk.Tk()
             self.running_window = self.password_code_window
-            self.password_code_window.attributes('-topmost',True)
+            self.password_code_window.attributes("-topmost", True)
             self.password_code_window.title("Password Code")
             self.password_code_window.geometry(f"300x310")
             self.password_code_window.configure(bg="#1E2533")
@@ -388,7 +391,7 @@ class Client:
                 messagebox.showerror("Register Code Error", err)
             self.register_code_window = tk.Tk()
             self.running_window = self.register_code_window
-            self.register_code_window.attributes('-topmost',True)
+            self.register_code_window.attributes("-topmost", True)
             self.register_code_window.title("Register Code")
             self.register_code_window.geometry(f"300x310")
             self.register_code_window.configure(bg="#1E2533")
@@ -449,7 +452,7 @@ class Client:
                 messagebox.showerror("Update Password Error", err)
             self.update_password_window = tk.Tk()
             self.running_window = self.update_password_window
-            self.update_password_window.attributes('-topmost',True)
+            self.update_password_window.attributes("-topmost", True)
             self.update_password_window.title("Update Password")
             self.update_password_window.geometry(f"300x280")
             self.update_password_window.configure(bg="#1E2533")
@@ -502,7 +505,7 @@ class Client:
         try:
             self.user_home_window = tk.Tk()
             self.running_window = self.user_home_window
-            self.user_home_window.attributes('-topmost',True)
+            self.user_home_window.attributes("-topmost", True)
             self.user_home_window.title("User Home")
             self.user_home_window.geometry(f"300x220")
             self.user_home_window.configure(bg="#1E2533")
@@ -538,9 +541,9 @@ class Client:
             login_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
         except Exception as e:
             print(f"Error: {e}")
-    
+
     def register(self):
-        '''Function that made to fix bugs'''
+        """Function that made to fix bugs"""
         self.username = self.register_entries[0].get()
         self.email = self.register_entries[1].get()
         self.password = self.register_entries[2].get()
@@ -548,9 +551,14 @@ class Client:
         self.verify_email()
 
     def verify_email(self):
-        '''Ask for the server to send verification code for the entered email address.'''
+        """Ask for the server to send verification code for the entered email address."""
         try:
-            if not self.username and not self.email and not self.password and not self.verify_password:
+            if (
+                not self.username
+                and not self.email
+                and not self.password
+                and not self.verify_password
+            ):
                 self.username = self.register_entries[0].get()
                 self.email = self.register_entries[1].get()
                 self.password = self.register_entries[2].get()
@@ -591,7 +599,7 @@ class Client:
             print(f"Error: {e}")
 
     def register_code(self):
-        '''Handle the registration verification code.'''
+        """Handle the registration verification code."""
         try:
             code = self.register_code_entry.get()
             if len(code) != 6 or not code.isnumeric():
@@ -607,7 +615,9 @@ class Client:
                 case "CDEK":
                     self.register_user()
                 case "CDEW":
-                    self.init_register_code("The code entered does not match the real code")
+                    self.init_register_code(
+                        "The code entered does not match the real code"
+                    )
                 case "EROR":
                     match response[2]:
                         case Errors.INVALID_CODE:
@@ -619,9 +629,7 @@ class Client:
                                 "The email does not apper in the server's database"
                             )
                         case Errors.CODE_EXPIRED:
-                            self.init_register(
-                                "The code has expired"
-                            )
+                            self.init_register("The code has expired")
                         case Errors.SERVER_ERROR:
                             self.init_register_code(
                                 "The server had problems while dealing with the request"
@@ -638,7 +646,7 @@ class Client:
             print(f"Error: {e}")
 
     def register_user(self):
-        '''Ask for the server to register a new user.'''
+        """Ask for the server to register a new user."""
         try:
             keys = ["Username", "Email Address", "Password"]
             values = [self.username, self.email, self.password]
@@ -676,7 +684,7 @@ class Client:
             print(f"Error: {e}")
 
     def login_user(self):
-        '''Ask for the server to login an existing user.'''
+        """Ask for the server to login an existing user."""
         try:
             username = self.login_entries[0].get()
             password = self.login_entries[1].get()
@@ -714,7 +722,7 @@ class Client:
             print(f"Error: {e}")
 
     def forgot_password(self):
-        '''Ask for the server to send code for password recovery.'''
+        """Ask for the server to send code for password recovery."""
         try:
             if not self.forgot_password_email:
                 self.forgot_password_email = self.email_entry.get()
@@ -733,7 +741,9 @@ class Client:
                         case Errors.INVALID_EMAIL:
                             self.init_forgot_password("The email entered is not valid")
                         case Errors.EMAIL_NOT_EXIST:
-                            self.init_forgot_password("The email entered does not exist")
+                            self.init_forgot_password(
+                                "The email entered does not exist"
+                            )
                         case Errors.SERVER_ERROR:
                             self.init_forgot_password(
                                 "The server had problems while dealing with the request"
@@ -750,7 +760,7 @@ class Client:
             print(f"Error: {e}")
 
     def password_code(self):
-        '''Handle the password recovery verification code.'''
+        """Handle the password recovery verification code."""
         try:
             code = self.password_code_entry.get()
             if len(code) != 6 or not code.isnumeric():
@@ -766,7 +776,9 @@ class Client:
                 case "CDEK":
                     self.init_update_password()
                 case "CDEW":
-                    self.init_password_code("The code entered does not match the real code")
+                    self.init_password_code(
+                        "The code entered does not match the real code"
+                    )
                 case "EROR":
                     match response[2]:
                         case Errors.INVALID_CODE:
@@ -778,9 +790,7 @@ class Client:
                                 "The email does not apper in the server's database"
                             )
                         case Errors.CODE_EXPIRED:
-                            self.init_forgot_password(
-                                "The code has expired"
-                            )
+                            self.init_forgot_password("The code has expired")
                         case Errors.SERVER_ERROR:
                             self.init_password_code(
                                 "The server had problems while dealing with the request"
@@ -797,7 +807,7 @@ class Client:
             print(f"Error: {e}")
 
     def update_password(self):
-        '''Ask for the server to update the user's password.'''
+        """Ask for the server to update the user's password."""
         try:
             password = self.password_entry.get()
             if password == "":
@@ -821,7 +831,9 @@ class Client:
                                 "The password was not updated due to server errors"
                             )
                         case Errors.INVALID_PASSWORD:
-                            self.init_update_password("The password entered is not valid")
+                            self.init_update_password(
+                                "The password entered is not valid"
+                            )
                         case Errors.INVALID_REQUEST:
                             self.init_update_password(
                                 "The request sent to the server was invalid"
@@ -844,7 +856,7 @@ class Client:
             if err:
                 messagebox.showerror("Select Crypto Error", err)
             self.select_crypto_window = tk.Tk()
-            self.select_crypto_window.attributes('-topmost', True)
+            self.select_crypto_window.attributes("-topmost", True)
             self.select_crypto_window.title("Select Crypto System")
             self.select_crypto_window.geometry("300x280")
             self.select_crypto_window.configure(bg="#1E2533")
@@ -910,17 +922,20 @@ class Client:
             case "CSOK":
                 return
             case "CSNK":
-                self.init_select_cryptosystem("The does not support the crypto system selected")
+                self.init_select_cryptosystem(
+                    "The does not support the crypto system selected"
+                )
             case Errors.SERVER_ERROR:
-                self.init_select_cryptosystem("The server had problems while handling with the request")
+                self.init_select_cryptosystem(
+                    "The server had problems while handling with the request"
+                )
             case Errors.INVALID_REQUEST:
                 self.init_select_cryptosystem("The request sent was invalid")
             case _:
                 self.invalid_response()
 
-    
     def send_data(self, request_type: int, user_data: dict) -> None:
-        '''Send data to the server based on request type and user data.'''
+        """Send data to the server based on request type and user data."""
         try:
             match request_type:
                 case 0:
@@ -939,11 +954,12 @@ class Client:
         except Exception as e:
             print(f"Error: {e}")
 
-
     def invalid_response(self):
-        '''Handle invalid responses from the server.'''
+        """Handle invalid responses from the server."""
         try:
-            print(f"The response sent from the server is not valid, closing connection...")
+            print(
+                f"The response sent from the server is not valid, closing connection..."
+            )
             self.cli_sock.close()
             exit()
         except Exception as e:
@@ -954,7 +970,7 @@ class Client:
         while b != 0:
             a, b = b, a % b
         return a
-    
+
     @staticmethod
     def is_prime(num):
         if num <= 1:
@@ -967,36 +983,36 @@ class Client:
             if num % i == 0:
                 return False
         return True
-    
+
     @staticmethod
     def generate_prime():
         while True:
             num = random.randint(100, 1000)
             if Client.is_prime(num):
                 return num
-    
+
     @staticmethod
     def generate_primitive_root(prime):
         while True:
             primitive_root = random.randint(2, prime - 1)
             if pow(primitive_root, (prime - 1) // 2, prime) != 1:
                 return primitive_root
-    
+
     @staticmethod
     def generate_private_key(prime):
         return random.randint(2, prime - 1)
-    
+
     @staticmethod
     def generate_public_key(prime, primitive_root, private_key):
         return pow(primitive_root, private_key, prime)
-    
+
     @staticmethod
     def generate_shared_secret(public_key, private_key, prime):
         shared_secret = pow(public_key, private_key, prime)
         shared_secret_str = str(shared_secret)
-        padded_shared_secret = shared_secret_str.ljust(16, '0')
+        padded_shared_secret = shared_secret_str.ljust(16, "0")
         return padded_shared_secret.encode()
-    
+
     def run(self) -> None:
         """Run the client application.
 
@@ -1017,31 +1033,40 @@ class Client:
                             public_key = response.split("|")[2].encode()
                             self.secret_key = Random.get_random_bytes(16)
                             rsa_public_key = serialization.load_pem_public_key(
-                                public_key,
-                                backend=default_backend()
+                                public_key, backend=default_backend()
                             )
                             encrypted_aes_key = rsa_public_key.encrypt(
                                 self.secret_key,
                                 padding.OAEP(
                                     mgf=padding.MGF1(algorithm=hashes.SHA256()),
                                     algorithm=hashes.SHA256(),
-                                    label=None
-                                )
+                                    label=None,
+                                ),
                             )
                             self.cli_sock.send(encrypted_aes_key)
-                            print(f"sent to server AES secret key: {self.secret_key} (before encryption with the public key)")
+                            print(
+                                f"sent to server AES secret key: {self.secret_key} (before encryption with the public key)"
+                            )
                             data = recv_by_size(self.cli_sock, key=self.secret_key)
                             opcode = data.split("|")[1]
                             match opcode:
                                 case "KEYK":
-                                    print(f"The server has successfully received the sercret key")
+                                    print(
+                                        f"The server has successfully received the sercret key"
+                                    )
                                     self.init_home()
                                 case _:
-                                    print(f"Error in the server while handling the sercret key")
+                                    print(
+                                        f"Error in the server while handling the sercret key"
+                                    )
                         case Errors.SERVER_ERROR:
-                            self.init_select_cryptosystem("The server had problems while handling with the request")
+                            self.init_select_cryptosystem(
+                                "The server had problems while handling with the request"
+                            )
                         case Errors.INVALID_REQUEST:
-                            self.init_select_cryptosystem("The request sent was invalid")
+                            self.init_select_cryptosystem(
+                                "The request sent was invalid"
+                            )
                         case _:
                             self.invalid_response()
                 elif self.crypto_system == "Diffie-Hellman":
@@ -1049,9 +1074,13 @@ class Client:
                     primitive_root = int(self.cli_sock.recv(1024).decode())
                     public_key = int(self.cli_sock.recv(1024).decode())
                     private_key = Client.generate_private_key(prime)
-                    client_public_key = Client.generate_public_key(prime, primitive_root, private_key)
+                    client_public_key = Client.generate_public_key(
+                        prime, primitive_root, private_key
+                    )
                     self.cli_sock.sendall(str(client_public_key).encode())
-                    self.secret_key = Client.generate_shared_secret(public_key, private_key, prime)
+                    self.secret_key = Client.generate_shared_secret(
+                        public_key, private_key, prime
+                    )
                     print("Shared secret generated:", self.secret_key)
                     self.init_home()
             except Exception as e:
@@ -1063,6 +1092,7 @@ class Client:
             self.cli_sock.close()
         except Exception as e:
             print(f"Error: {e}")
+
 
 if __name__ == "__main__":
     if len(argv) == 3:

@@ -8,6 +8,7 @@ import base64
 size_header_size = 8
 TCP_DEBUG = True
 
+
 def __log(prefix, data, max_to_print=100):
     if not TCP_DEBUG:
         return
@@ -37,9 +38,10 @@ def encrypt(message, key):
     iv = cipher.iv
     return iv + ciphertext
 
+
 def decrypt(encrypted_message, key):
-    iv = encrypted_message[:AES.block_size]
-    ciphertext = encrypted_message[AES.block_size:]
+    iv = encrypted_message[: AES.block_size]
+    ciphertext = encrypted_message[AES.block_size :]
     cipher = AES.new(key, AES.MODE_CBC, iv)
     decrypted = unpad(cipher.decrypt(ciphertext), AES.block_size)
     return decrypted

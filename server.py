@@ -27,8 +27,10 @@ import math
 IP: str = "0.0.0.0"
 PORT: int = 1234
 
+
 class Server:
     """Class implementing a server application for user registration and login."""
+
     HOST_EMAIL = "dalalcyber@gmail.com"
     HOST_PASSWORD = "cdyu khpz hyhc poqn"
 
@@ -49,7 +51,7 @@ class Server:
         while b != 0:
             a, b = b, a % b
         return a
-    
+
     @staticmethod
     def is_prime(num):
         if num <= 1:
@@ -62,7 +64,7 @@ class Server:
             if num % i == 0:
                 return False
         return True
-    
+
     @staticmethod
     def generate_prime():
         while True:
@@ -76,22 +78,22 @@ class Server:
             primitive_root = random.randint(2, prime - 1)
             if pow(primitive_root, (prime - 1) // 2, prime) != 1:
                 return primitive_root
-            
+
     @staticmethod
     def generate_private_key(prime):
         return random.randint(2, prime - 1)
-    
+
     @staticmethod
     def generate_public_key(prime, primitive_root, private_key):
         return pow(primitive_root, private_key, prime)
-    
+
     @staticmethod
     def generate_shared_secret(public_key, private_key, prime):
         shared_secret = pow(public_key, private_key, prime)
         shared_secret_str = str(shared_secret)
-        padded_shared_secret = shared_secret_str.ljust(16, '0')
+        padded_shared_secret = shared_secret_str.ljust(16, "0")
         return padded_shared_secret.encode()
-    
+
     @staticmethod
     def handle_client(cli_sock, id, addr, lock) -> None:
         """Handle individual client connections."""
@@ -118,51 +120,63 @@ class Server:
                                     private_key = rsa.generate_private_key(
                                         public_exponent=65537,
                                         key_size=2048,
-                                        backend=default_backend()
+                                        backend=default_backend(),
                                     )
                                     public_key = private_key.public_key()
                                     public_key_pem = public_key.public_bytes(
                                         encoding=serialization.Encoding.PEM,
-                                        format=serialization.PublicFormat.SubjectPublicKeyInfo
+                                        format=serialization.PublicFormat.SubjectPublicKeyInfo,
                                     )
-                                    send_with_size(cli_sock, f"|PKEY|{public_key_pem.decode()}|")
+                                    send_with_size(
+                                        cli_sock, f"|PKEY|{public_key_pem.decode()}|"
+                                    )
                                     encrypted_secret_key = cli_sock.recv(2048)
                                     secret_key = private_key.decrypt(
                                         encrypted_secret_key,
                                         padding.OAEP(
                                             mgf=padding.MGF1(algorithm=hashes.SHA256()),
                                             algorithm=hashes.SHA256(),
-                                            label=None
-                                        )
+                                            label=None,
+                                        ),
                                     )
-                                    print(f"AES secret key: {secret_key} (after dectyption with the private key)")
-                                    send_with_size(cli_sock, f"|KEYK|".encode(), secret_key)
+                                    print(
+                                        f"AES secret key: {secret_key} (after dectyption with the private key)"
+                                    )
+                                    send_with_size(
+                                        cli_sock, f"|KEYK|".encode(), secret_key
+                                    )
                                 case _:
                                     print(
                                         f"The request from client: {id, addr} is not valid, closing connection..."
                                     )
                                     send_with_size(
-                                        cli_sock, f"|EROR|{Errors.INVALID_REQUEST}|".encode(), secret_key
+                                        cli_sock,
+                                        f"|EROR|{Errors.INVALID_REQUEST}|".encode(),
+                                        secret_key,
                                     )  # request is not valid
                         elif crypto_system == "Diffie-Hellman":
                             prime = Server.generate_prime()
                             primitive_root = Server.generate_primitive_root(prime)
                             private_key = Server.generate_private_key(prime)
-                            public_key = Server.generate_public_key(prime, primitive_root, private_key)
+                            public_key = Server.generate_public_key(
+                                prime, primitive_root, private_key
+                            )
                             cli_sock.sendall(str(prime).encode())
                             cli_sock.sendall(str(primitive_root).encode())
                             cli_sock.sendall(str(public_key).encode())
                             client_public_key = int(cli_sock.recv(1024).decode())
-                            secret_key = Server.generate_shared_secret(client_public_key, private_key, prime)
+                            secret_key = Server.generate_shared_secret(
+                                client_public_key, private_key, prime
+                            )
                             print("Shared secret generated:", secret_key)
                     else:
                         send_with_size(cli_sock, "|CSNK|".encode())
             except Exception as e:
-                    print(e)
-                    send_with_size(
-                        cli_sock, f"|EROR|{Errors.SERVER_ERROR}|".encode()
-                    )  # server had problems while dealing with the request
-                    cli_sock.close()
+                print(e)
+                send_with_size(
+                    cli_sock, f"|EROR|{Errors.SERVER_ERROR}|".encode()
+                )  # server had problems while dealing with the request
+                cli_sock.close()
             while True:
                 request = recv_by_size(cli_sock, key=secret_key)
                 if not request:
@@ -182,7 +196,8 @@ class Server:
                         else:
                             send_with_size(
                                 cli_sock,
-                                f"|EROR|{Errors.REGISTER_BEFORE_PASSING_EMAIL_VERIFICATION}|".encode(), secret_key,
+                                f"|EROR|{Errors.REGISTER_BEFORE_PASSING_EMAIL_VERIFICATION}|".encode(),
+                                secret_key,
                             )  # trying to register before passing email verification
                     case "REGC":
                         result1 = Server.send_code(
@@ -193,7 +208,7 @@ class Server:
                             addr,
                             lock,
                             email_db_handler,
-                            secret_key
+                            secret_key,
                         )  # (code, email)
                     case "LOGN":
                         Server.handle_login(
@@ -208,7 +223,7 @@ class Server:
                             db_handler,
                             lock,
                             email_db_handler,
-                            secret_key
+                            secret_key,
                         )  # (code, username)
                     case "CODE":
                         if result2:
@@ -220,7 +235,7 @@ class Server:
                                 addr,
                                 email_db_handler,
                                 lock,
-                                secret_key
+                                secret_key,
                             )
                         elif result1:
                             is_code_match1 = Server.handle_code(
@@ -231,40 +246,51 @@ class Server:
                                 addr,
                                 email_db_handler,
                                 lock,
-                                secret_key
+                                secret_key,
                             )
                         else:
                             send_with_size(
                                 cli_sock,
-                                f"|EROR|{Errors.SUBMIT_CODE_BEFORE_GETTING_IT}|".encode(), secret_key,
+                                f"|EROR|{Errors.SUBMIT_CODE_BEFORE_GETTING_IT}|".encode(),
+                                secret_key,
                             )  # trying to submit code before getting the code
                     case "PWUP":
                         if is_code_match2:
                             (is_code_match2, result2) = Server.handle_update_password(
-                                cli_sock, request, result2, id, addr, db_handler, lock, secret_key
+                                cli_sock,
+                                request,
+                                result2,
+                                id,
+                                addr,
+                                db_handler,
+                                lock,
+                                secret_key,
                             )
                         else:
                             send_with_size(
                                 cli_sock,
-                                f"|EROR|{Errors.UPDATE_PASSWORD_BEFORE_PASSING_VERIFICATION}|".encode(), secret_key,
+                                f"|EROR|{Errors.UPDATE_PASSWORD_BEFORE_PASSING_VERIFICATION}|".encode(),
+                                secret_key,
                             )  # trying to update password before passing verification
                     case _:
                         print(
                             f"The request from client: {id, addr} is not valid, closing connection..."
                         )
                         send_with_size(
-                            cli_sock, f"|EROR|{Errors.INVALID_REQUEST}|".encode(), secret_key
+                            cli_sock,
+                            f"|EROR|{Errors.INVALID_REQUEST}|".encode(),
+                            secret_key,
                         )  # request is not valid
         except Exception as e:
-            print(
-                f"Error while handling client request: {id, addr}, {e}"
-            )
+            print(f"Error while handling client request: {id, addr}, {e}")
             send_with_size(
                 cli_sock, f"|EROR|{Errors.SERVER_ERROR}|".encode(), secret_key
             )  # server had problems while dealing with the request
 
     @staticmethod
-    def handle_register(cli_sock, request, user_data, db_handler, id, addr, lock, secret_key):
+    def handle_register(
+        cli_sock, request, user_data, db_handler, id, addr, lock, secret_key
+    ):
         """Handle user registration."""
         try:
             request = request.split("|")
@@ -341,7 +367,8 @@ class Server:
             ):
                 send_with_size(
                     cli_sock,
-                    f"|LOGK|{username}|{Server.database_action(lock, db_handler.get_email, username)}|".encode(), secret_key,
+                    f"|LOGK|{username}|{Server.database_action(lock, db_handler.get_email, username)}|".encode(),
+                    secret_key,
                 )
                 print(f"The user ({username}) of client: {id, addr} has logged in")
             else:
@@ -358,7 +385,9 @@ class Server:
             )  # server had problems while dealing with the request
 
     @staticmethod
-    def send_code(cli_sock, request, id, addr, db_handler, lock, email_db_handler, secret_key):
+    def send_code(
+        cli_sock, request, id, addr, db_handler, lock, email_db_handler, secret_key
+    ):
         """Send verification code to the provided email."""
         try:
             opcode = request.split("|")[1]
@@ -386,7 +415,9 @@ class Server:
                         f"The email ({receiver_email}) received by client: {id, addr} does not appear in the user table"
                     )
                     send_with_size(
-                        cli_sock, f"|EROR|{Errors.EMAIL_NOT_EXIST}|".encode(), secret_key
+                        cli_sock,
+                        f"|EROR|{Errors.EMAIL_NOT_EXIST}|".encode(),
+                        secret_key,
                     )  # email received does not appear in the user table
                     return None
                 message["Subject"] = "Code for a new password"
@@ -423,7 +454,9 @@ class Server:
             return None
 
     @staticmethod
-    def handle_code(cli_sock, request, code, id, addr, email_db_handler, lock, secret_key) -> bool:
+    def handle_code(
+        cli_sock, request, code, id, addr, email_db_handler, lock, secret_key
+    ) -> bool:
         """Handle verification code sent by the client."""
         try:
             email: str = request.split("|")[3]
