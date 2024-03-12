@@ -6,7 +6,13 @@ from sys import argv, exit
 from re import match
 from error_codes import Errors
 from Crypto import Random
-
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import dh
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 IP = "127.0.0.1"
 PORT = 1234
@@ -28,7 +34,6 @@ def close_window(func):
                 self.running_window.destroy()
             result = func(self, *args, **kwargs)
             return result
-
         return wrapper
     except Exception as e:
         print(f"Error: {e}")
@@ -73,6 +78,15 @@ class Client:
             self.verify_password = None
             self.email = None
             self.forgot_password_email = None
+            self.selected_crypto = None
+            self.button_style = {
+                "bg": "#46516e",
+                "fg": "white",
+                "borderwidth": 0,
+                "activebackground": "#2980B9",
+                "activeforeground": "white",
+            }
+
         except Exception as e:
             print(f"Error: {e}")
 
@@ -99,13 +113,6 @@ class Client:
                 fg="#E0E6F0",
             )
             header_label.pack(pady=20, padx=10, ipadx=10, ipady=5)
-            self.button_style = {
-                "bg": "#46516e",
-                "fg": "white",
-                "borderwidth": 0,
-                "activebackground": "#2980B9",
-                "activeforeground": "white",
-            }
             register_button = tk.Button(
                 self.home_window,
                 text="Open Register Window",
@@ -824,6 +831,92 @@ class Client:
         except Exception as e:
             print(f"Error: {e}")
 
+    def init_select_cryptosystem(self, err=None):
+        """
+        Select the crypto system (RSA or Diffie-Hellman).
+
+        Args:
+            err (str, optional): Error message to display, if any. Defaults to None.
+        """
+        try:
+            if err:
+                messagebox.showerror("Select Crypto Error", err)
+            self.select_crypto_window = tk.Tk()
+            self.select_crypto_window.attributes('-topmost', True)
+            self.select_crypto_window.title("Select Crypto System")
+            self.select_crypto_window.geometry("300x280")
+            self.select_crypto_window.configure(bg="#1E2533")
+
+            header_font = font.Font(family="Helvetica", size=14, weight="bold")
+            tk.Label(
+                self.select_crypto_window,
+                text="Select Crypto System",
+                font=header_font,
+                bg="#1E2533",
+                fg="#E0E6F0",
+            ).pack(pady=20, padx=10, ipadx=10, ipady=5)
+
+            self.selected_crypto = tk.StringVar(value="RSA")
+
+            tk.Radiobutton(
+                self.select_crypto_window,
+                text="RSA",
+                variable=self.selected_crypto,
+                value="RSA",
+                bg="#1E2533",
+                fg="#E0E6F0",
+                selectcolor="#34495E",  # Change selection color
+                activebackground="#1E2533",  # Change active background color
+                activeforeground="#E0E6F0",  # Change active foreground color
+            ).pack(pady=5, padx=10, ipadx=10, ipady=5)
+
+            tk.Radiobutton(
+                self.select_crypto_window,
+                text="Diffie-Hellman",
+                variable=self.selected_crypto,
+                value="Diffie-Hellman",
+                bg="#1E2533",
+                fg="#E0E6F0",
+                selectcolor="#34495E",  # Change selection color
+                activebackground="#1E2533",  # Change active background color
+                activeforeground="#E0E6F0",  # Change active foreground color
+            ).pack(pady=5, padx=10, ipadx=10, ipady=5)
+
+            select_button = tk.Button(
+                self.select_crypto_window,
+                text="Select",
+                command=self.select_crypto,
+                bg="#46516e",  # Change button background color
+                fg="white",  # Change button foreground color
+                borderwidth=0,
+                activebackground="#2980B9",
+                activeforeground="white",
+            )
+            select_button.pack(pady=5, padx=10, ipadx=10, ipady=5)
+            self.select_crypto_window.mainloop()
+
+        except Exception as e:
+            print(f"Error: {e}")
+
+    def select_crypto(self):
+        self.select_crypto_window.destroy()
+        self.crypto_system = self.selected_crypto.get()
+        send_with_size(self.cli_sock, f"|{self.crypto_system}|")
+        response = recv_by_size(self.cli_sock)
+        opcode = response.split("|")[1]
+        match opcode:
+            case "CSOK":
+                return
+            case "CSNK":
+                self.init_select_cryptosystem("The does not support the crypto system selected")
+            case Errors.SERVER_ERROR:
+                self.init_select_cryptosystem("The server had problems while handling with the request")
+            case Errors.INVALID_REQUEST:
+                self.init_select_cryptosystem("The request sent was invalid")
+            case _:
+                self.invalid_response()
+
+    
     def send_data(self, request_type: int, user_data: dict) -> None:
         '''Send data to the server based on request type and user data.'''
         try:
@@ -844,6 +937,7 @@ class Client:
         except Exception as e:
             print(f"Error: {e}")
 
+
     def invalid_response(self):
         '''Handle invalid responses from the server.'''
         try:
@@ -852,7 +946,7 @@ class Client:
             exit()
         except Exception as e:
             print(f"Error: {e}")
-    
+
     def run(self) -> None:
         """Run the client application.
 
@@ -863,17 +957,47 @@ class Client:
             try:
                 self.cli_sock.connect((self.ip, self.port))
                 print(f"Connected to server {self.ip}:{self.port}")
-                self.secret_key = Random.get_random_bytes(16)
-                self.cli_sock.send(self.secret_key)
-                print(f"send to server secret key: {self.secret_key}")
-                data = recv_by_size(self.cli_sock, key=self.secret_key)
-                opcode = data.split("|")[1]
-                match opcode:
-                    case "KEYK":
-                        print(f"The server has successfully received the key: {self.secret_key}")
-                        self.init_home()
-                    case _:
-                        print(f"Error in the server while handling the sercret key: {self.secret_key}")
+                self.init_select_cryptosystem()
+                if self.crypto_system == "RSA":
+                    send_with_size(self.cli_sock, "|GKEY|")
+                    response = recv_by_size(self.cli_sock)
+                    opcode = response.split("|")[1]
+                    match opcode:
+                        case "PKEY":
+                            public_key = response.split("|")[2].encode()
+                            self.secret_key = Random.get_random_bytes(16)
+                            rsa_public_key = serialization.load_pem_public_key(
+                                public_key,
+                                backend=default_backend()
+                            )
+                            encrypted_aes_key = rsa_public_key.encrypt(
+                                self.secret_key,
+                                padding.OAEP(
+                                    mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                                    algorithm=hashes.SHA256(),
+                                    label=None
+                                )
+                            )
+                            self.cli_sock.send(encrypted_aes_key)
+                            print(f"sent to server AES secret key: {self.secret_key} (before encryption with the public key)")
+                            data = recv_by_size(self.cli_sock, key=self.secret_key)
+                            opcode = data.split("|")[1]
+                            match opcode:
+                                case "KEYK":
+                                    print(f"The server has successfully received the sercret key")
+                                    self.init_home()
+                                case _:
+                                    print(f"Error in the server while handling the sercret key")
+                        case Errors.SERVER_ERROR:
+                            self.init_select_cryptosystem("The server had problems while handling with the request")
+                        case Errors.INVALID_REQUEST:
+                            self.init_select_cryptosystem("The request sent was invalid")
+                        case _:
+                            self.invalid_response()
+                elif self.crypto_system == "Diffie-Hellman":
+                    pass
+
+
             except Exception as e:
                 print(e)
                 print(

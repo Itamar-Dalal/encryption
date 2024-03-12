@@ -9,6 +9,20 @@ from email.mime.multipart import MIMEMultipart
 from random import randrange
 from re import match
 from error_codes import Errors
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import dh
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+import random
+import math
 
 IP: str = "0.0.0.0"
 PORT: int = 1234
@@ -31,6 +45,51 @@ class Server:
             print(f"Error: {e}")
 
     @staticmethod
+    def gcd(a, b):
+        while b != 0:
+            a, b = b, a % b
+        return a
+    
+    @staticmethod
+    def is_prime(num):
+        if num <= 1:
+            return False
+        if num == 2 or num == 3:
+            return True
+        if num % 2 == 0:
+            return False
+        for i in range(3, int(math.sqrt(num)) + 1, 2):
+            if num % i == 0:
+                return False
+        return True
+    
+    @staticmethod
+    def generate_prime():
+        while True:
+            num = random.randint(100, 1000)
+            if Server.is_prime(num):
+                return num
+
+    @staticmethod
+    def generate_primitive_root(prime):
+        while True:
+            primitive_root = random.randint(2, prime - 1)
+            if pow(primitive_root, (prime - 1) // 2, prime) != 1:
+                return primitive_root
+            
+    @staticmethod
+    def generate_private_key(prime):
+        return random.randint(2, prime - 1)
+    
+    @staticmethod
+    def generate_public_key(prime, primitive_root, private_key):
+        return pow(primitive_root, private_key, prime)
+    
+    @staticmethod
+    def generate_shared_secret(public_key, private_key, prime):
+        return pow(public_key, private_key, prime)
+    
+    @staticmethod
     def handle_client(cli_sock, id, addr, lock) -> None:
         """Handle individual client connections."""
         try:
@@ -42,8 +101,62 @@ class Server:
             db_handler = DataBaseHandler()
             email_db_handler = EmailCodeDBHandler()
             try:
-                secret_key = cli_sock.recv(1024)
-                send_with_size(cli_sock, f"|KEYK|".encode(), secret_key)
+                is_crypto_ok = False
+                while not is_crypto_ok:
+                    crypto_system = recv_by_size(cli_sock).split("|")[1]
+                    if crypto_system in ("RSA", "Diffie-Hellman"):
+                        send_with_size(cli_sock, "|CSOK|".encode())
+                        if crypto_system == "RSA":
+                            is_crypto_ok = True
+                            data = recv_by_size(cli_sock)
+                            opcode = data.split("|")[1]
+                            match opcode:
+                                case "GKEY":
+                                    private_key = rsa.generate_private_key(
+                                        public_exponent=65537,
+                                        key_size=2048,
+                                        backend=default_backend()
+                                    )
+                                    public_key = private_key.public_key()
+                                    public_key_pem = public_key.public_bytes(
+                                        encoding=serialization.Encoding.PEM,
+                                        format=serialization.PublicFormat.SubjectPublicKeyInfo
+                                    )
+                                    send_with_size(cli_sock, f"|PKEY|{public_key_pem.decode()}|")
+                                    encrypted_secret_key = cli_sock.recv(2048)
+                                    secret_key = private_key.decrypt(
+                                        encrypted_secret_key,
+                                        padding.OAEP(
+                                            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                                            algorithm=hashes.SHA256(),
+                                            label=None
+                                        )
+                                    )
+                                    print(f"AES secret key: {secret_key} (after dectyption with the private key)")
+                                    send_with_size(cli_sock, f"|KEYK|".encode(), secret_key)
+                                case _:
+                                    print(
+                                        f"The request from client: {id, addr} is not valid, closing connection..."
+                                    )
+                                    send_with_size(
+                                        cli_sock, f"|EROR|{Errors.INVALID_REQUEST}|".encode(), secret_key
+                                    )  # request is not valid
+                        #elif crypto_system == "Diffie-Hellman":
+                        #    prime = Server.generate_prime()
+                        #    primitive_root = Server.generate_primitive_root(prime)
+                        #    private_key = Server.generate_private_key(prime)
+                        #    public_key = Server.generate_public_key(prime, primitive_root, private_key)
+                        #    cli_sock.sendall(str(prime).encode())
+                        #    cli_sock.sendall(str(primitive_root).encode())
+                        #    cli_sock.sendall(str(public_key).encode())
+#
+                        #    client_public_key = int(cli_sock.recv(1024).decode())
+                        #    secret_key = Server.generate_shared_secret(client_public_key, private_key, prime)
+                        #    print("Shared secret generated:", shared_secret)
+
+
+                    else:
+                        send_with_size(cli_sock, "|CSNK|".encode())
             except Exception as e:
                     print(e)
                     send_with_size(
@@ -84,7 +197,7 @@ class Server:
                         )  # (code, email)
                     case "LOGN":
                         Server.handle_login(
-                            cli_sock, request, db_handler, id, addr, lock
+                            cli_sock, request, db_handler, id, addr, lock, secret_key
                         )
                     case "VERC":
                         result2 = Server.send_code(
@@ -208,8 +321,6 @@ class Server:
             send_with_size(
                 cli_sock, f"|EROR|{Errors.SERVER_ERROR}|".encode(), secret_key
             )  # server had problems while dealing with the request
-
-   
 
     @staticmethod
     def handle_login(cli_sock, request, db_handler, id, addr, lock, secret_key):
