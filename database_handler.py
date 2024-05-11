@@ -144,7 +144,7 @@ if __name__ == "__main__":
     print(db_test.get_email("itamar"))
     print(db_test.is_password_ok("itamar", "dllilo05"))"""
     db_test.delete_user("itamar")
-    email_db_test = EmailCodeDBHandler()
-    email_db_test.save_email("dalalitamar@gmail.com")
+    #email_db_test = EmailCodeDBHandler()
+    #email_db_test.save_email("dalalitamar@gmail.com")
     # print(email_db_test.is_timeout_passed("dalalitamar@gmail.com"))
     # email_db_test.delete_email("dalalitamar@gmail.com")

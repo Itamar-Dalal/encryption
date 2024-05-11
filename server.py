@@ -190,7 +190,7 @@ class Server:
                     case "REGS":
                         if is_code_match1:
                             Server.handle_register(
-                                cli_sock, request, result1, db_handler, id, addr, lock
+                                cli_sock, request, result1, db_handler, id, addr, lock, secret_key
                             )
                             is_code_match1 = False
                         else:
